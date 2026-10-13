@@ -36,7 +36,6 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
   }
 
   Future<Widget> _getBookInfo(String? barcode) async {
-
     try{
       Response response = await _dio.get(
         '/getbookList_v2?serviceKey=${dotenv.env['BOOK_API_KEY']}&pageNo=1&numOfRows=10&type=json&isbn=$barcode',
@@ -45,8 +44,11 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
         var data = response.data;
         BookHeader bookHeader = BookHeader.fromJson(jsonData: data["header"]);
         BookBody bookBody = BookBody.fromJson(jsonData: data["body"]);
-        return Center(
-
+        BookItem bookItem = bookBody.bookItems[0];
+        return Column(
+          children: [
+            Text('${bookItem.DCTERMS_title}'),
+          ],
         );
       }
     }catch(e, s){
@@ -74,7 +76,7 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
         ],
       ),
       body: SingleChildScrollView(
-
+        child: Center(),
       ),
     );
   }
