@@ -8,10 +8,15 @@ class BarcodeScreen extends StatefulWidget{
   const BarcodeScreen({super.key, required this.title});
 
   @override
-  State<StatefulWidget> createState() => _BarcodeScreenState();
+  State<BarcodeScreen> createState() => _BarcodeScreenState();
 }
 
-class _BarcodeScreenState extends State<BarcodeScreen> {
+class _BarcodeScreenState extends State<BarcodeScreen> with SingleTickerProviderStateMixin{
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  final double boxWidth = 250.0;
+  final double boxHeight = 200.0;
   Barcode? _barcode;
 
   Widget _barcodePreview(Barcode? value) {
@@ -40,27 +45,108 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // 1. 애니메이션 컨트롤러 설정 (2초 동안 위에서 아래로 이동)
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+
+    // 2. 0.0(맨 위)에서 1.0(맨 아래)까지 부드럽게 움직이도록 설정
+    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    // 3. 위아래로 무한 반복 실행
+    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _controller.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+
+
     return Scaffold(
       appBar: AppBar(title: const Text('바코드를 촬영해 주세요')),
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           MobileScanner(onDetect: _handleBarcode),
-          Align(
-            alignment: Alignment.topCenter,
-            child: Container(
-              width: double.infinity,
-              height: 100,
-              color: Colors.black12,
+          ColorFiltered(
+            colorFilter: ColorFilter.mode(
+              Colors.black38, // 외부 영역 색상 및 투명도 (0.7 투명도 선언 대체)
+              BlendMode.srcOut, // 안쪽 네모를 제외한 바깥쪽만 색을 칠함
+            ),
+            child: Stack(
+              children: [
+                // 투명한 배경을 전체에 깔아줍니다.
+                Container(
+                  color: Colors.transparent,
+                ),
+                // 가운데 뚫어줄 네모 영역의 크기와 위치를 잡습니다.
+                Center(
+                  child: Container(
+                    width: boxWidth,
+                    height: boxHeight,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(0),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
+          Center(
             child: Container(
-              width: double.infinity,
-              height: 100,
-              color: Colors.black12,
+              width: boxWidth,
+              height: boxHeight,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white, width: 2), // 하얀색 테두리
+                borderRadius: BorderRadius.circular(0),
+              ),
+            ),
+          ),
+          Center(
+            child: SizedBox(
+              width: boxWidth,
+              height: boxHeight,
+              child: Stack(
+                children: [
+                  AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, child) {
+                      final double currentTop = _animation.value * (boxHeight - 4);
+
+                      return Positioned(
+                        top: currentTop,
+                        left: 0,
+                        right: 0,
+                        child: child!,
+                      );
+                    },
+                    child: Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withAlpha(200),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           // Align(
