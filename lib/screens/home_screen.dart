@@ -1,5 +1,8 @@
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
 import 'package:aws402_book_flutter/screens/home/book_screen.dart';
+import 'package:aws402_book_flutter/screens/home/my_page_screen.dart';
+import 'package:aws402_book_flutter/screens/home/note_screen.dart';
+import 'package:aws402_book_flutter/screens/home/reward_screen.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatefulWidget{
@@ -16,10 +19,9 @@ class _HomeScreenState extends State<HomeScreen>{
 
   final List<Widget> _pages = [
     const BookScreen(),
-    const Center(child: Icon(Icons.woman),),
-    const Center(child: Icon(Icons.wallet),),
-    const Center(child: Icon(Icons.beach_access),),
-
+    const NoteScreen(),
+    const RewardScreen(),
+    const MyPageScreen(),
   ];
 
   final List<IconData> _icons = [
@@ -65,30 +67,6 @@ class _HomeScreenState extends State<HomeScreen>{
         leftCornerRadius: 32,
         rightCornerRadius: 32,
       ),
-      // bottomNavigationBar: NavigationBar (
-      //   selectedIndex: _currentIndex,
-      //   onDestinationSelected: (index) {
-      //     setState(() => _currentIndex = index);
-      //   },
-      //   destinations: [
-      //     NavigationDestination(
-      //       icon: Icon(Icons.man),
-      //       label: '',
-      //     ),
-      //     NavigationDestination(
-      //       icon: Icon(Icons.woman),
-      //       label: '',
-      //     ),
-      //     NavigationDestination(
-      //       icon: Icon(Icons.wallet),
-      //       label: '',
-      //     ),
-      //     NavigationDestination(
-      //       icon: Icon(Icons.beach_access),
-      //       label: '',
-      //     ),
-      //   ],
-      // ),
     );
   }
 

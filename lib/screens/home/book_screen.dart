@@ -48,8 +48,7 @@ class _BookScreenState extends State<BookScreen> {
                           Padding(
                             padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
                             child: GestureDetector(
-                              // onTap: () => Navigator.popAndPushNamed(context, AppRoutes.scanner),
-                              onTap: () => Navigator.popAndPushNamed(context, AppRoutes.bookInfo, arguments: {"barcode":"9791140715541"}),
+                              onTap: () => Navigator.popAndPushNamed(context, AppRoutes.scanner),
                               child: Row(
                                 mainAxisSize: MainAxisSize.max,
                                 children: [
@@ -62,6 +61,25 @@ class _BookScreenState extends State<BookScreen> {
                               ),
                             ),
                           ),
+                          // 바코드 인식 다음 테스트를 위한 버튼 (LHS) ----------
+                          Divider(),
+                          Padding(
+                            padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                            child: GestureDetector(
+                              onTap: () => Navigator.popAndPushNamed(context, AppRoutes.bookInfo, arguments: {"barcode":"9791140715541"}),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.max,
+                                children: [
+                                  Icon(Icons.qr_code_outlined),
+                                  Text(
+                                    '바코드로 등록하기 (Test)',
+                                    style: TextStyle(fontSize: 18.0),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // -----------------------------------------------
                           Divider(),
                           Padding(
                             padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
