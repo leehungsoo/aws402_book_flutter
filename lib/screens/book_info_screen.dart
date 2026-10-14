@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:aws402_book_flutter/models/book_model.dart';
 import 'package:aws402_book_flutter/models/kakao_book_model.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
@@ -82,28 +81,40 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
 
   return Column(
     mainAxisAlignment: MainAxisAlignment.center,
-    crossAxisAlignment: CrossAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
         '${kakaoDocumentItem.title}',
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: Colors.black87,
-          fontSize: 20.0,
+          fontSize: 30.0,
+          fontWeight: FontWeight.bold
         ),
       ),
+      SizedBox(height: 10.0,),
       Row(
+        mainAxisSize: MainAxisSize.max,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Image.network(
-            kakaoDocumentItem.thumbnail,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10.0),
+            child: Image.network(
+              kakaoDocumentItem.thumbnail,
+              width: 100,
+              fit: BoxFit.fitWidth,
+            ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(kakaoDocumentItem.authors),
-              Text(kakaoDocumentItem.publisher)
-            ],
+          SizedBox(width: 10.0,),
+          Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(kakaoDocumentItem.authors,),
+                  SizedBox(height: 10.0,),
+                  Text(kakaoDocumentItem.publisher)
+                ],
+              )
           ),
         ],
       )
@@ -120,30 +131,61 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
     if(isLoading)_getBookInfo(barcode);
 
     return Scaffold(
-      appBar: AppBar(
-        actions: [
-          Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Icon(Icons.star),
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(80),
+        child: Container(
+          margin: EdgeInsets.only(right: 16.0),
+          decoration: BoxDecoration(
+            color: Colors.blueAccent,
           ),
-        ],
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            actions: [
+              Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Icon(Icons.star),
+              ),
+              Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Icon(Icons.more_vert),
+              ),
+            ],
+          ),
+        ),
       ),
       body:
-        isLoading ?
-        Center(
-          child: CircularProgressIndicator(),
-        )
-        :
-        kakaoDocumentItems.isNotEmpty ?
-        SingleChildScrollView(
-          child: Center(
-            child: bookInfoWidget(),
-          ),
-        )
-        :
-        Center(
-          child: Text('찾으시는 도서가 존재하지 않습니다.'),
-        )
+        Stack(
+          children: [
+            Container(
+              height: 200,
+              margin: EdgeInsets.only(right: 16.0),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent,
+                borderRadius: BorderRadius.only(bottomRight: Radius.circular(40.0))
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.all(20.0),
+              child: isLoading ?
+              Center(
+                child: CircularProgressIndicator(),
+              )
+                  :
+              kakaoDocumentItems.isNotEmpty ?
+              SingleChildScrollView(
+                child: Center(
+                  child: bookInfoWidget(),
+                ),
+              )
+                  :
+              Center(
+                child: Text('찾으시는 도서가 존재하지 않습니다.'),
+              ),
+            ),
+          ],
+        ),
+
+
     );
   }
 

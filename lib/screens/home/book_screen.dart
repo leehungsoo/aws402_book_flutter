@@ -66,7 +66,7 @@ class _BookScreenState extends State<BookScreen> {
                           Padding(
                             padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
                             child: GestureDetector(
-                              onTap: () => Navigator.popAndPushNamed(context, AppRoutes.bookInfo, arguments: {"barcode":"9791140715541"}),
+                              onTap: () => Navigator.popAndPushNamed(context, AppRoutes.bookInfo, arguments: {"barcode":"9791158393977"}),
                               child: Row(
                                 mainAxisSize: MainAxisSize.max,
                                 children: [

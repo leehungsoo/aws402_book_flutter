@@ -47,6 +47,22 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
       body: Stack(
         children: [
           MobileScanner(onDetect: _handleBarcode),
+          Align(
+            alignment: Alignment.topCenter,
+            child: Container(
+              width: double.infinity,
+              height: 100,
+              color: Colors.black12,
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              width: double.infinity,
+              height: 100,
+              color: Colors.black12,
+            ),
+          ),
           // Align(
           //   alignment: Alignment.bottomCenter,
           //   child: Container(
