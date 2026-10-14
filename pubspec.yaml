@@ -34,12 +34,17 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+#  LHs : 하단 네비게이션 바에 스타일과 효과를 주기 위한 animated_bottom_navigation_bar
   animated_bottom_navigation_bar: ^1.4.1
+#  LHS : 바코드 스캐너를 위한 image_picker, mobile_scanner
   image_picker: ^1.1.2
   mobile_scanner: ^7.4.2
+#  LHS : api 서버와의 통신을 위한 dio
   dio: ^5.11.1
+#  민감한 설정 데이터값 (key) 의 유출을 막기위한 flutter_dotenv
   flutter_dotenv: ^6.0.1
-
+#  앱에 접속한 디바이스의 정보를 가져오기위함
+  device_info_plus: ^13.3.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
