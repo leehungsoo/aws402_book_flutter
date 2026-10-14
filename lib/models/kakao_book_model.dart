@@ -23,7 +23,6 @@ class KakaoDocumentItem {
   final int price;
   final String publisher;
   final int sale_price;
-  final String status;
   final String thumbnail;
   final String title;
   final String translators;
@@ -37,7 +36,6 @@ class KakaoDocumentItem {
     required this.price,
     required this.publisher,
     required this.sale_price,
-    required this.status,
     required this.thumbnail,
     required this.title,
     required this.translators,
@@ -53,7 +51,6 @@ class KakaoDocumentItem {
       price: jsonData["price"],
       publisher: jsonData["publisher"],
       sale_price: jsonData["sale_price"],
-      status: jsonData["status"],
       thumbnail: jsonData["thumbnail"],
       title: jsonData["title"],
       translators: jsonData["translators"].toString().replaceAll("[", "").replaceAll("]", ""),
@@ -70,7 +67,6 @@ class KakaoDocumentItem {
       'price': price,
       'publisher': publisher,
       'sale_price': sale_price,
-      'status': status,
       'thumbnail': thumbnail,
       'title': title,
       'translators': translators,

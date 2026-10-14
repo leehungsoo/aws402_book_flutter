@@ -19,7 +19,7 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
   bool isLoading = true;
   List<KakaoDocumentItem> kakaoDocumentItems = [];
 
-  final options = BaseOptions(
+  final kakaoOptions = BaseOptions(
       baseUrl: 'https://dapi.kakao.com/v3/search/book',
       connectTimeout: Duration(seconds: 5),
       receiveTimeout: Duration(seconds: 3),
@@ -29,25 +29,35 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
         HttpHeaders.authorizationHeader: 'KakaoAK ${dotenv.env['KAKAO_API_KEY']}'
       }
   );
-  late Dio _dio;
-  late Dio _api;
+  final apiOptions = BaseOptions(
+    baseUrl: 'http://10.100.204.178:8080/api',
+      connectTimeout: Duration(seconds: 5),
+      receiveTimeout: Duration(seconds: 3),
+      headers: {
+        Headers.contentTypeHeader: Headers.jsonContentType,
+        Headers.acceptHeader: Headers.jsonContentType,
+      }
+  );
+  late Dio _kakaoDio;
+  late Dio _apiDio;
 
   @override
   void initState() {
     super.initState();
-    _dio = Dio(options);
-    _api = Dio();
+    _kakaoDio = Dio(kakaoOptions);
+    _apiDio = Dio(apiOptions);
   }
 
   @override
   void dispose() {
     super.dispose();
-    _dio.close();
+    _kakaoDio.close();
+    _apiDio.close();
   }
 
   Future<Widget> _getBookInfo(String? barcode) async {
     try {
-      Response response = await _dio.get(
+      Response response = await _kakaoDio.get(
           '',
           queryParameters: {
             'target': 'isbn',
@@ -77,20 +87,38 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
 
   Future<void> insertBookInfo() async {
     try{
-      Response response = await _api.post(
-        'http://10.100.204.178:8080/api/book/info',
+      Response response = await _apiDio.post(
+        '/book/info',
         data: kakaoDocumentItems[0].objToMap(),
-        options: Options(
-          connectTimeout: Duration(seconds: 5),
-          receiveTimeout: Duration(seconds: 3),
-          headers: {
-            Headers.contentTypeHeader: Headers.jsonContentType,
-            Headers.acceptHeader: Headers.jsonContentType,
-          }
-        )
       );
-    }catch(e ,s){
+    }catch(e, s){
       debugPrint('$e, $s');
+    }
+  }
+
+  Future<void> selectBookInfo(String? barcode) async {
+    try{
+      Response response = await _apiDio.get(
+        '/book/info',
+        queryParameters: {
+          'isbn' : barcode,
+        }
+      );
+      if(response.statusCode == 200){
+        var data = response.data;
+        if(data['result'] == 'success'){
+          setState(() {
+            isLoading = false;
+            kakaoDocumentItems.add(KakaoDocumentItem.fromJson(jsonData: data['data']));
+          });
+        }
+      }
+    }catch(e, s){
+      debugPrint('$e, $s');
+    }finally{
+      if(isLoading){
+        _getBookInfo(barcode);
+      }
     }
   }
 
@@ -103,7 +131,7 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        '${kakaoDocumentItem.title}',
+        kakaoDocumentItem.title,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: Colors.black87,
@@ -147,7 +175,8 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
     final arguments = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     final String barcode = arguments["barcode"] as String;
 
-    if(isLoading)_getBookInfo(barcode);
+    // if(isLoading)_getBookInfo(barcode);
+    if(isLoading)selectBookInfo(barcode);
 
     return Scaffold(
       appBar: PreferredSize(
