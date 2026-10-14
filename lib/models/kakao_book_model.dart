@@ -46,7 +46,7 @@ class KakaoDocumentItem {
 
   factory KakaoDocumentItem.fromJson({required Map<String, dynamic> jsonData}){
     return KakaoDocumentItem(
-      authors: jsonData["authors"].toString(),
+      authors: jsonData["authors"].toString().replaceAll("[", "").replaceAll("]", ""),
       contents: jsonData["contents"],
       datetime: jsonData["datetime"],
       isbn: jsonData["isbn"],
@@ -56,9 +56,25 @@ class KakaoDocumentItem {
       status: jsonData["status"],
       thumbnail: jsonData["thumbnail"],
       title: jsonData["title"],
-      translators: jsonData["translators"].toString(),
+      translators: jsonData["translators"].toString().replaceAll("[", "").replaceAll("]", ""),
       url: jsonData["url"]
     );
+  }
 
+  Map<String, dynamic> objToMap() {
+    return {
+      'authors': authors,
+      'contents': contents,
+      'datetime': datetime,
+      'isbn': isbn,
+      'price': price,
+      'publisher': publisher,
+      'sale_price': sale_price,
+      'status': status,
+      'thumbnail': thumbnail,
+      'title': title,
+      'translators': translators,
+      'url': url,
+    };
   }
 }

@@ -64,6 +64,14 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
             ),
           ),
           // Align(
+          //   alignment: Alignment.center,
+          //   child: Container(
+          //     width: 1,
+          //     height: double.infinity,
+          //     color: Colors.red,
+          //   ),
+          // ),
+          // Align(
           //   alignment: Alignment.bottomCenter,
           //   child: Container(
           //     alignment: Alignment.bottomCenter,

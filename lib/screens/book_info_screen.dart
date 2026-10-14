@@ -26,15 +26,17 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
       headers: {
         Headers.contentTypeHeader: Headers.jsonContentType,
         Headers.acceptHeader: Headers.jsonContentType,
-        HttpHeaders.authorizationHeader: 'KakaoAK ${dotenv.env['BOOK_API_KEY']}'
+        HttpHeaders.authorizationHeader: 'KakaoAK ${dotenv.env['KAKAO_API_KEY']}'
       }
   );
   late Dio _dio;
+  late Dio _api;
 
   @override
   void initState() {
     super.initState();
     _dio = Dio(options);
+    _api = Dio();
   }
 
   @override
@@ -54,14 +56,11 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
       );
       if (response.statusCode == 200) {
         var data = response.data;
-        print('$data');
-        print(data['documents'].runtimeType);
         final List<dynamic> kakaoDocuments = data['documents'];
-        print('kakaoDocuments $kakaoDocuments');
         final List<KakaoDocumentItem> kakaoDocumentItems = kakaoDocuments.map((
             item) => KakaoDocumentItem.fromJson(jsonData: item)).toList();
-        print(kakaoDocumentItems.length);
         setState(() => this.kakaoDocumentItems = kakaoDocumentItems);
+        insertBookInfo();
       }
     } catch (e, s) {
       debugPrint('$e, $s');
@@ -75,6 +74,26 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
       child: Text('도서 정보가 없습니다.'),
     );
   }
+
+  Future<void> insertBookInfo() async {
+    try{
+      Response response = await _api.post(
+        'http://10.100.204.178:8080/api/book/info',
+        data: kakaoDocumentItems[0].objToMap(),
+        options: Options(
+          connectTimeout: Duration(seconds: 5),
+          receiveTimeout: Duration(seconds: 3),
+          headers: {
+            Headers.contentTypeHeader: Headers.jsonContentType,
+            Headers.acceptHeader: Headers.jsonContentType,
+          }
+        )
+      );
+    }catch(e ,s){
+      debugPrint('$e, $s');
+    }
+  }
+
 
   Widget bookInfoWidget() {
   KakaoDocumentItem kakaoDocumentItem = kakaoDocumentItems[0];
