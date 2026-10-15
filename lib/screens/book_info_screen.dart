@@ -9,8 +9,6 @@ class BookInfoScreen extends StatefulWidget{
   final String title;
   const BookInfoScreen({super.key, required this.title});
 
-
-
   @override
   State<StatefulWidget> createState() => _BookInfoScreenState();
 }
@@ -30,7 +28,7 @@ class _BookInfoScreenState extends State<BookInfoScreen> {
       }
   );
   final apiOptions = BaseOptions(
-    baseUrl: 'http://10.100.204.178:8080/api',
+    baseUrl: 'http://barobook.kro.kr/api',
       connectTimeout: Duration(seconds: 5),
       receiveTimeout: Duration(seconds: 3),
       headers: {
