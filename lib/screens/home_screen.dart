@@ -1,8 +1,7 @@
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
 import 'package:aws402_book_flutter/screens/home/book_screen.dart';
 import 'package:aws402_book_flutter/screens/home/my_page_screen.dart';
-import 'package:aws402_book_flutter/screens/home/note_screen.dart';
-import 'package:aws402_book_flutter/screens/home/reward_screen.dart';
+import 'package:aws402_book_flutter/screens/home/search_screen.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatefulWidget{
@@ -19,16 +18,20 @@ class _HomeScreenState extends State<HomeScreen>{
 
   final List<Widget> _pages = [
     const BookScreen(),
-    const NoteScreen(),
-    const RewardScreen(),
+    const SearchScreen(),
     const MyPageScreen(),
   ];
 
   final List<IconData> _icons = [
-    Icons.menu_book,
-    Icons.light,
-    Icons.grade,
+    Icons.home,
+    Icons.search,
     Icons.manage_accounts_outlined,
+  ];
+
+  final List<String> _titles = [
+    '홈',
+    '도서검색',
+    '마이 페이지'
   ];
 
   @override
@@ -52,10 +55,21 @@ class _HomeScreenState extends State<HomeScreen>{
       bottomNavigationBar: AnimatedBottomNavigationBar.builder(
         itemCount: _icons.length,
         tabBuilder: (index, isActive) {
-          return Icon(
-            _icons[index],
-            size: isActive ? 40.0 : 28.0,
-            color: isActive ? Colors.teal : Colors.grey,
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                _icons[index],
+                size: isActive ? 30.0 : 25.0,
+                color: isActive ? Colors.teal : Colors.grey,
+              ),
+              Text(
+                _titles[index],
+                style: TextStyle(
+                  fontSize: 12.0,
+                ),
+              )
+            ],
           );
         },
         activeIndex: _currentIndex,
