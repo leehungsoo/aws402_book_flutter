@@ -14,27 +14,23 @@ class _BookScreenState extends State<BookScreen> {
 
   // =========================================================
   // [형호씨 작업 연결 공간 1: 상태 변수 선언]
-  // 형호씨가 백엔드(MySQL)에서 받아올 데이터가 담기는 그릇입니다.
   // =========================================================
   int completedBooksCount = 0;       // 완독 도서 수
-  double averageRating = 0.0;        // 평균 평점
+  int totalBookCount = 0;            // 전체 도서 수 (평균 평점에서 변경됨)
   int progressPercent = 0;           // 진행율 퍼센트
   double progressRatio = 0.0;        // 진행율 막대 비율 (0.0 ~ 1.0)
-  bool isLoading = false;            // 로딩 상태 (데이터를 불러오는 중인지 확인)
+  bool isLoading = false;            // 로딩 상태
 
   @override
   void initState() {
     super.initState();
-    // 화면이 켜질 때 형호씨의 MySQL 데이터를 불러옵니다.
     // fetchReadingReport(); // (백엔드 서버 켜지면 주석 해제)
   }
 
   // =========================================================
   // [형호씨 작업 연결 공간 2: MySQL 데이터 GET 함수]
-  // 형호씨가 Spring Boot 등으로 만든 API 주소를 아래에 넣으면 됩니다.
   // =========================================================
   Future<void> fetchReadingReport() async {
-    // TODO: 형호씨, 실제 백엔드 API 주소로 변경해 주세요!
     const String apiUrl = 'https://api.example.com/api/users/reading-report';
 
     setState(() => isLoading = true);
@@ -45,9 +41,8 @@ class _BookScreenState extends State<BookScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          // DB에서 가져온 값을 변수에 덮어씌우면 만든 화면이 자동 업데이트됨
           completedBooksCount = data['completedBooksCount'] ?? 0;
-          averageRating = (data['averageRating'] ?? 0.0).toDouble();
+          totalBookCount = data['totalBookCount'] ?? 0; // 전체 도서 수 데이터 바인딩
           progressPercent = data['progressPercent'] ?? 0;
           progressRatio = (data['progressPercent'] ?? 0) / 100.0;
           isLoading = false;
@@ -63,7 +58,6 @@ class _BookScreenState extends State<BookScreen> {
 
   // =========================================================
   // [흥수씨 & 정민씨 작업 연결 공간: 책 등록 바텀 시트]
-  // '책을 추가해 보세요'를 누르면 올라오는 메뉴입니다.
   // =========================================================
   void _addBooks() {
     showModalBottomSheet(
@@ -86,17 +80,12 @@ class _BookScreenState extends State<BookScreen> {
                       padding: const EdgeInsets.only(left: 20.0, right: 20.0),
                       child: Column(
                         children: [
-                          // --------------------------------------------------
                           // 1. 검색해서 등록하기 [정민씨 파트]
-                          // --------------------------------------------------
                           Padding(
                             padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
                             child: GestureDetector(
                               onTap: () {
-                                Navigator.pop(context); // 모달 먼저 닫기
-                                // TODO: 정민씨 작업 완료 후, AppRoutes에 등록하고 아래 주석 풀기!
-                                // Navigator.pushNamed(context, AppRoutes.정민씨라우트명_검색);
-
+                                Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('정민씨가 개발 중인 검색 기능입니다! 🛠️')),
                                 );
@@ -111,9 +100,7 @@ class _BookScreenState extends State<BookScreen> {
                             ),
                           ),
                           const Divider(),
-                          // --------------------------------------------------
                           // 2. 바코드로 등록하기 [흥수씨 파트]
-                          // --------------------------------------------------
                           Padding(
                             padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
                             child: GestureDetector(
@@ -128,9 +115,7 @@ class _BookScreenState extends State<BookScreen> {
                             ),
                           ),
                           const Divider(),
-                          // --------------------------------------------------
                           // 3. 바코드로 등록하기 (Test) [흥수씨 파트]
-                          // --------------------------------------------------
                           Padding(
                             padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
                             child: GestureDetector(
@@ -145,17 +130,12 @@ class _BookScreenState extends State<BookScreen> {
                             ),
                           ),
                           const Divider(),
-                          // --------------------------------------------------
-                          //  4. 직접 입력하기 [정민씨 파트]
-                          // --------------------------------------------------
+                          // 4. 직접 입력하기 [정민씨 파트]
                           Padding(
                             padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
                             child: GestureDetector(
                               onTap: () {
-                                Navigator.pop(context); // 모달 먼저 닫기
-                                // TODO: 정민씨 작업 완료 후, AppRoutes에 등록하고 아래 주석 풀기!
-                                // Navigator.pushNamed(context, AppRoutes.정민씨라우트명_직접입력);
-
+                                Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('정민씨가 개발 중인 직접 입력 기능입니다! 🛠️')),
                                 );
@@ -184,11 +164,10 @@ class _BookScreenState extends State<BookScreen> {
   }
 
   // =========================================================
-  //[작업 영역: 전체 UI 구조 및 디자인]
+  // [작업 영역: 전체 UI 구조 및 디자인]
   // =========================================================
   @override
   Widget build(BuildContext context) {
-    // 추천 색상 테마: 딥 네이비 & 소프트 화이트
     final Color mainColor = const Color(0xFF1B3B6F);
     final Color subColor = const Color(0xFF98D7C2);
     final Color bgColor = const Color(0xFFF4F4F9);
@@ -198,7 +177,7 @@ class _BookScreenState extends State<BookScreen> {
       backgroundColor: bgColor,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: fetchReadingReport, // 형호씨 함수 연결 (당겨서 새로고침)
+          onRefresh: fetchReadingReport,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
@@ -227,7 +206,7 @@ class _BookScreenState extends State<BookScreen> {
                       decoration: const BoxDecoration(
                         color: Colors.black12,
                         image: DecorationImage(
-                          image: AssetImage('assets/images/main_image.jpg'), // 메인 이미지
+                          image: AssetImage('assets/images/main_image.jpg'),
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -237,7 +216,7 @@ class _BookScreenState extends State<BookScreen> {
                       left: 24,
                       right: 24,
                       child: GestureDetector(
-                        onTap: _addBooks, // 흥수씨/정민씨 메뉴 호출
+                        onTap: _addBooks,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                           decoration: BoxDecoration(
@@ -267,7 +246,7 @@ class _BookScreenState extends State<BookScreen> {
 
                 const SizedBox(height: 32),
 
-                // 형호씨 MySQL 데이터가 화면에 뿌려지는 영역
+                // 독서 리포트 카드 영역
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Column(
@@ -277,6 +256,7 @@ class _BookScreenState extends State<BookScreen> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
+                          // 1. 완독 도서 수 카드
                           Expanded(
                             child: Container(
                               padding: const EdgeInsets.all(20),
@@ -286,7 +266,7 @@ class _BookScreenState extends State<BookScreen> {
                                 children: [
                                   const Text('완독 도서 수', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 8),
-                                  Text(isLoading ? '-' : '$completedBooksCount', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                                  Text(isLoading ? '-' : '$completedBooksCount권', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 12),
                                   Align(alignment: Alignment.centerRight, child: Icon(Icons.menu_book, size: 40, color: mainColor))
                                 ],
@@ -294,6 +274,7 @@ class _BookScreenState extends State<BookScreen> {
                             ),
                           ),
                           const SizedBox(width: 16),
+                          // 2. 전체 도서 수 카드
                           Expanded(
                             child: Container(
                               padding: const EdgeInsets.all(20),
@@ -301,18 +282,14 @@ class _BookScreenState extends State<BookScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('평균 평점', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                  const Text('전체 도서 수', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 8),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(isLoading ? '-' : '$averageRating', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-                                      Padding(padding: const EdgeInsets.only(bottom: 6.0, left: 2.0), child: Icon(Icons.star, size: 18, color: mainColor)),
-                                      const Padding(padding: EdgeInsets.only(bottom: 4.0), child: Text(' / 5.0', style: TextStyle(fontSize: 14))),
-                                    ],
+                                  Text(
+                                    isLoading ? '-' : '$totalBookCount권',
+                                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                                   ),
                                   const SizedBox(height: 12),
-                                  Align(alignment: Alignment.centerRight, child: Icon(Icons.show_chart, size: 40, color: mainColor))
+                                  Align(alignment: Alignment.centerRight, child: Icon(Icons.library_books, size: 40, color: mainColor))
                                 ],
                               ),
                             ),
@@ -325,6 +302,7 @@ class _BookScreenState extends State<BookScreen> {
 
                 const SizedBox(height: 32),
 
+                // 전체 독서 진행율 바 영역
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Column(
