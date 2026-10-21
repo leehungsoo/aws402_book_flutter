@@ -1,8 +1,8 @@
+import 'package:aws402_book_flutter/screens/home/book_screen.dart';
 import 'package:aws402_book_flutter/screens/sign/signup_screen.dart';
-import 'package:aws402_book_flutter/screens/sign/my_page_screen.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart'; // 👈 1. FCM 패키지 임포트 추가
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MyPageScreen()),
+          MaterialPageRoute(builder: (context) => const BookScreen()),
         );
       } else {
         _showToast('사용자 Email 인증을 확인해주세요.');
