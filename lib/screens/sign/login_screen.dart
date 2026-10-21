@@ -96,10 +96,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
         _showToast('로그인 성공!');
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const BookScreen()),
-        );
+         Navigator.pop(context, true);
+
+        // Navigator.pushReplacement(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => const BookScreen()),
+        // );
       } else {
         _showToast('사용자 Email 인증을 확인해주세요.');
         await FirebaseAuth.instance.signOut();
