@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:barobook/screens/login_screen.dart';
-import 'package:barobook/screens/edit_profile_screen.dart';
-import 'package:barobook/screens/target_book_screen.dart';
-import 'package:barobook/screens/book_statistics_screen.dart';
+import 'package:aws402_book_flutter/screens/sign/login_screen.dart';
+import 'package:aws402_book_flutter/screens/sign/edit_profile_screen.dart';
+import 'package:aws402_book_flutter/screens/sign/target_book_screen.dart';
+import 'package:aws402_book_flutter/screens/sign/book_statistics_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -61,7 +61,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
     setState(() => _isLoading = false);
   }
 
-  // 1. 백엔드 API 서버 데이터 조회
+  // 백엔드 API 서버 데이터 조회
   Future<void> _fetchUserDataFromApi() async {
     currentUser = FirebaseAuth.instance.currentUser;
     displayName = currentUser?.displayName ?? '사용자';
@@ -70,7 +70,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
       try {
         final response = await _dio.get(
           // 병합 전 테스트 임시 주소
-          'https://your-api-server.com/api/users/${currentUser!.email}',
+          '/api/mypage/${currentUser!.email}',
         );
 
         if (response.statusCode == 200 && response.data != null) {

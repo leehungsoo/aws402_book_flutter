@@ -1,7 +1,8 @@
-import 'package:barobook/screens/signup_screen.dart';
-import 'package:barobook/screens/my_page_screen.dart';
+import 'package:aws402_book_flutter/screens/sign/signup_screen.dart';
+import 'package:aws402_book_flutter/screens/sign/my_page_screen.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart'; // 👈 1. FCM 패키지 임포트 추가
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -41,17 +42,19 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Dio를 이용해 백엔드 서버에 로그인 정보 및 토큰 전송
+  // Dio 이용. 백엔드 서버에 로그인 정보, 인증 토큰, FCM 토큰 전송
   Future<Map<String, dynamic>?> _fetchUserInfo(
-    String email,
-    String? firebaseToken,
-  ) async {
+      String email,
+      String? firebaseToken,
+      String? fcmToken,
+      ) async {
     try {
       final response = await _dio.get(
         '/api/login',
         queryParameters: {
           'email': email,
           'token': firebaseToken,
+          'fcmToken': fcmToken,
         },
       );
 
@@ -80,11 +83,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // 이메일 인증 여부 확인
       if (userCredential.user != null && userCredential.user!.emailVerified) {
-        // [핵심] 로그인 성공 직후 파이어베이스 ID 토큰 가져오기
+        // 로그인 성공 직후 파이어베이스 ID 토큰 가져오기 (인증용)
         String? firebaseToken = await userCredential.user?.getIdToken();
-
-        // 백엔드 연동 데이터 체크 및 토큰 전송
-        await _fetchUserInfo(email, firebaseToken);
+        print(' 파이어베이스 ID 토큰 확인 : $firebaseToken');
+        // 기기의 최신 FCM 푸시 알림 토큰 가져오기
+        String? fcmToken = await FirebaseMessaging.instance.getToken();
+        print(' fcm 토큰 확인 : $fcmToken');
+        // 백엔드 연동 데이터 체크 및 두 토큰 모두 전송
+        await _fetchUserInfo(email, firebaseToken, fcmToken);
 
         if (!mounted) return;
 
@@ -205,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           validator: (value) =>
-                              (value == null || value.trim().isEmpty)
+                          (value == null || value.trim().isEmpty)
                               ? '이메일을 입력하세요'
                               : null,
                         ),
@@ -256,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           validator: (value) =>
-                              (value == null || value.trim().isEmpty)
+                          (value == null || value.trim().isEmpty)
                               ? '비밀번호를 입력하세요'
                               : null,
                         ),
@@ -267,11 +273,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: _isLoading
                                 ? null
                                 : () {
-                                    if (_formKey.currentState?.validate() ??
-                                        false) {
-                                      _signIn();
-                                    }
-                                  },
+                              if (_formKey.currentState?.validate() ??
+                                  false) {
+                                _signIn();
+                              }
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: brandBrownColor,
                               elevation: 0,
@@ -281,21 +287,21 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             child: _isLoading
                                 ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2.5,
-                                    ),
-                                  )
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
                                 : const Text(
-                                    '로그인',
-                                    style: TextStyle(
-                                      fontSize: 16.0,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                              '로그인',
+                              style: TextStyle(
+                                fontSize: 16.0,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ),
                       ],

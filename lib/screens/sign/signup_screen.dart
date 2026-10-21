@@ -1,5 +1,6 @@
-import 'package:dio/dio.dart'; // Dio 패키지 임포트
+import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -45,7 +46,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   // 백엔드 서버 DB(tb_users)에 회원 정보 및 토큰 저장 요청
-  Future<bool> registerUserToBackend(String email, String pwd, String userName, int targetCount, String? firebaseToken) async {
+  Future<bool> registerUserToBackend(String email, String pwd, String userName, int targetCount, String? firebaseToken, String? fcmToken) async {
     try {
       // 병합시 주소 수정
       const url = '/api/signup';
@@ -58,7 +59,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           'password': pwd,
           'target_book_count': targetCount,
           'grade': 0,
-          'token': firebaseToken,
+          'token': fcmToken,
         },
       );
 
@@ -87,7 +88,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     String fullEmail = '$emailId@$emailDomain';
 
     try {
-      // 1. Firebase Authentication 계정 생성
+      // Firebase Authentication 계정 생성
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: fullEmail, password: password);
 
@@ -96,11 +97,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         await userCredential.user?.updateDisplayName(name);
         await userCredential.user?.sendEmailVerification();
 
-        // 파이어베이스 ID 토큰
+        // 파이어베이스 ID 토큰 (인증용)
         String? firebaseToken = await userCredential.user?.getIdToken();
 
+        // 기기의 FCM 푸시 알림 토큰 획득
+        String? fcmToken = await FirebaseMessaging.instance.getToken();
+
         // 백엔드 DB(tb_users)에 유저 정보 및 토큰 전송
-        bool isBackendSaved = await registerUserToBackend(fullEmail, password, name, targetBookCount, firebaseToken);
+        bool isBackendSaved = await registerUserToBackend(fullEmail, password, name, targetBookCount, firebaseToken, fcmToken);
 
         if (!isBackendSaved) {
           showToast('파이어베이스 가입은 완료되었으나 서버 DB 저장에 실패했습니다.');
@@ -252,7 +256,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: 6.0),
                     TextFormField(
                       obscureText: true,
-                      // ... 기존과 동일
                       decoration: InputDecoration(
                         hintText: '비밀번호 입력 (6자 이상)',
                         hintStyle: const TextStyle(color: Colors.grey, fontSize: 12),

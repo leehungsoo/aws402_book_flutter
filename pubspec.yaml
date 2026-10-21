@@ -47,6 +47,16 @@ dependencies:
   device_info_plus: ^13.3.0
   firebase_messaging: ^17.0.0
 
+  # KJH : 파이어베이스 앱 초기화 및 연동 코어
+  firebase_core: ^5.0.0
+  # KJH : 사용자 인증(로그인 회원가입 로그아웃) 계정관리
+  firebase_auth: ^7.0.0
+  # KJH : 팝업 토스트 메세지(알림 팝업)
+  fluttertoast: ^10.0.2
+  # KJH : 로컬 데이터베이스(프로필, 한줄 소개 등)
+  shared_preferences: ^2.5.6
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
