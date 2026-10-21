@@ -62,106 +62,69 @@ class _BookScreenState extends State<BookScreen> {
   void _addBooks() {
     showModalBottomSheet(
       context: context,
-      useSafeArea: true,
-      builder: (context) {
-        return SafeArea(
-          child: Wrap(
+      backgroundColor: const Color(0xFFFAF9F5),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text('책 등록하기', style: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold)),
-                    ),
-                    const Divider(thickness: 1, color: Colors.black87),
-                    Container(
-                      padding: const EdgeInsets.only(left: 20.0, right: 20.0),
-                      child: Column(
-                        children: [
-                          // 1. 검색해서 등록하기 [정민씨 파트]
-                          Padding(
-                            padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
-                            child: GestureDetector(
-                              onTap: () {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('정민씨가 개발 중인 검색 기능입니다! 🛠️')),
-                                );
-                              },
-                              child: Row(
-                                children: const [
-                                  Icon(Icons.search),
-                                  SizedBox(width: 8),
-                                  Text('검색해서 등록하기', style: TextStyle(fontSize: 18.0)),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const Divider(),
-                          // 2. 바코드로 등록하기 [흥수씨 파트]
-                          Padding(
-                            padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
-                            child: GestureDetector(
-                              onTap: () => Navigator.popAndPushNamed(context, AppRoutes.scanner),
-                              child: Row(
-                                children: const [
-                                  Icon(Icons.qr_code_outlined),
-                                  SizedBox(width: 8),
-                                  Text('바코드로 등록하기', style: TextStyle(fontSize: 18.0)),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const Divider(),
-                          // 3. 바코드로 등록하기 (Test) [흥수씨 파트]
-                          Padding(
-                            padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
-                            child: GestureDetector(
-                              onTap: () => Navigator.popAndPushNamed(context, AppRoutes.bookInfo, arguments: {"barcode": "9791158393977"}),
-                              child: Row(
-                                children: const [
-                                  Icon(Icons.qr_code_outlined),
-                                  SizedBox(width: 8),
-                                  Text('바코드로 등록하기 (Test)', style: TextStyle(fontSize: 18.0)),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const Divider(),
-                          // 4. 직접 입력하기 [정민씨 파트]
-                          Padding(
-                            padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
-                            child: GestureDetector(
-                              onTap: () {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('정민씨가 개발 중인 직접 입력 기능입니다! 🛠️')),
-                                );
-                              },
-                              child: Row(
-                                children: const [
-                                  Icon(Icons.keyboard),
-                                  SizedBox(width: 8),
-                                  Text('직접 입력하기', style: TextStyle(fontSize: 18.0)),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              const Text(
+                '책 등록하기',
+                style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
               ),
+              SizedBox(height: 10,),
+              // 내용: 도서 검색·등록 화면으로 이동할 수 있도록 라우팅을 연결한다.
+              ListTile(
+                tileColor: const Color(0xFFE8DED0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                leading: const Icon(Icons.search,size: 30,),
+                title: const Text('검색해서 등록하기',style: TextStyle(fontSize: 18),),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.pushNamed(context, AppRoutes.searchRegister);
+                },
+              ),
+              const Divider(thickness: 1, color: Colors.black12, ),
+              ListTile(
+                tileColor: const Color(0xFFE8DED0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                leading: const Icon(Icons.qr_code_scanner,size: 30,),
+                title: const Text('바코드로 등록하기',style: TextStyle(fontSize: 18),),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.pushNamed(context, AppRoutes.scanner);
+                },
+              ),
+              const Divider(thickness: 1, color: Colors.black12),
+              ListTile(
+                tileColor: const Color(0xFFE8DED0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                leading: const Icon(Icons.edit,size: 30,),
+                title: const Text('직접 등록하기',style: TextStyle(fontSize: 18),),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.pushNamed(
+                    context,
+                    AppRoutes.register,
+                    arguments: {'readonly': false},
+                  );
+                },
+              ),
+              const Divider(thickness: 1, color: Colors.black12),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+
 
   // =========================================================
   // [작업 영역: 전체 UI 구조 및 디자인]

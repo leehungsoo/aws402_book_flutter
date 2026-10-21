@@ -55,6 +55,7 @@ dependencies:
   fluttertoast: ^10.0.2
   # KJH : 로컬 데이터베이스(프로필, 한줄 소개 등)
   shared_preferences: ^2.5.6
+  intl: ^0.20.3
 
 
 dev_dependencies:
