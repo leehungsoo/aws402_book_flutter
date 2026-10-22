@@ -48,7 +48,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   // 백엔드 서버 DB(tb_users)에 회원 정보 및 토큰 저장 요청
   Future<bool> registerUserToBackend(String email, String pwd, String userName, int targetCount, String? firebaseToken, String? fcmToken) async {
     try {
-      // 병합시 주소 수정
+      // 애뮬레이터
+      // const url = 'http://10.0.2.2:8080/api/signup';
+      // 실제기기
       const url = '/api/signup';
 
       final response = await _dio.post(

@@ -50,6 +50,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ) async {
     try {
       final response = await _dio.get(
+        // 애뮬레이터
+        // 'http://10.0.2.2:8080/api/login',
+        // 실제기기
         '/api/login',
         queryParameters: {
           'email': email,
