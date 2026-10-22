@@ -22,7 +22,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
-  final Dio _dio = Dio();
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: Duration(seconds: 5),
+      receiveTimeout: Duration(seconds: 3),
+      baseUrl: 'http://barobook.kro.kr/api'
+      // baseUrl: 'http://localhost:8080/api'
+    )
+  );
 
   @override
   void dispose() {
@@ -45,31 +52,39 @@ class _LoginScreenState extends State<LoginScreen> {
   // Dio 이용. 백엔드 서버에 로그인 정보, 인증 토큰, FCM 토큰 전송
   Future<Map<String, dynamic>?> _fetchUserInfo(
       String email,
+      String password,
       String? firebaseToken,
       String? fcmToken,
       ) async {
     try {
-      final response = await _dio.get(
+      final response = await _dio.post(
         // 애뮬레이터
         // 'http://10.0.2.2:8080/api/login',
         // 실제기기
-        '/api/login',
-        queryParameters: {
+        '/user/exists',
+        data: {
           'email': email,
-          'token': firebaseToken,
-          'fcmToken': fcmToken,
+          'password':password,
+          // 'token': firebaseToken,
+          // 'fcmToken': fcmToken,
         },
       );
 
       if (response.statusCode == 200 && response.data != null) {
-        return response.data as Map<String, dynamic>;
+        _fetchFcmToken(response.data.data.idx, firebaseToken!);
+        return response.data.data as Map<String, dynamic>;
       }
     } catch (e) {
       debugPrint('백엔드 유저 정보 조회 오류: $e');
     }
     return null;
   }
-
+  Future<void> _fetchFcmToken(int idx, String firebaseToken) async {
+    await _dio.put('/user/token',
+        data: {
+          'token': firebaseToken,
+        });
+  }
   void _signIn() async {
     // 키보드 내리기
     FocusScope.of(context).unfocus();
@@ -93,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
         String? fcmToken = await FirebaseMessaging.instance.getToken();
         print(' fcm 토큰 확인 : $fcmToken');
         // 백엔드 연동 데이터 체크 및 두 토큰 모두 전송
-        await _fetchUserInfo(email, firebaseToken, fcmToken);
+        await _fetchUserInfo(email, password, firebaseToken, fcmToken);
 
         if (!mounted) return;
 

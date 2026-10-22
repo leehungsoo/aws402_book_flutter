@@ -23,7 +23,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
-  final Dio _dio = Dio();
+  BaseOptions options = BaseOptions(
+    connectTimeout: Duration(seconds: 5),
+    receiveTimeout: Duration(seconds: 3),
+    baseUrl: "http://barobook.kro.kr"
+  );
+  late final Dio _dio = Dio(options);
 
   int targetBookCount = 0;
   int status = 0;
@@ -236,6 +241,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _dio.clone();
   }
 
   @override

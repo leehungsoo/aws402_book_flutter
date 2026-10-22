@@ -35,7 +35,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String emailDomain = 'naver.com';
   int targetBookCount = 10; // 초기값 10
 
-  final Dio _dio = Dio(); // 서버 통신용 Dio 인스턴스
+  final Dio _dio = Dio(
+      BaseOptions(
+          connectTimeout: Duration(seconds: 5),
+          receiveTimeout: Duration(seconds: 3),
+          baseUrl: 'http://barobook.kro.kr/api'
+      )
+  ); // 서버 통신용 Dio 인스턴스
 
   // 입력창 테두리 스타일 생성기
   OutlineInputBorder _buildInputBorder(Color color, {double width = 1.0}) {

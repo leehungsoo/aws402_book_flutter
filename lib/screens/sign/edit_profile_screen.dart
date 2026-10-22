@@ -26,7 +26,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _passwordController;
 
   final User? currentUser = FirebaseAuth.instance.currentUser;
-  final Dio _dio = Dio();
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: Duration(seconds: 5),
+      receiveTimeout: Duration(seconds: 3),
+      baseUrl: 'http://barobook.kro.kr/api'
+    )
+  );
   bool _isLoading = false;
 
   @override
@@ -66,7 +72,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       // 애뮬레이터
       // const url = 'http://10.0.2.2:8080/api/editprofile';
       // 실제기기
-      const url = '/api/editprofile';
+      const url = '/user/edit';
 
       final Map<String, dynamic> requestData = {
         'email': currentUser!.email,
@@ -79,7 +85,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         requestData['password'] = password;
       }
 
-      final response = await _dio.put(
+      final response = await _dio.post(
         url,
         data: requestData,
       );
