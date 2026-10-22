@@ -26,7 +26,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   final Dio _dio = Dio();
 
   int targetBookCount = 0;
-  int readBookCount = 0;
+  int status = 0;
   int userGrade = 0; // (0: 일반유저, 1: 관리자)
   String userBio = '';
   DateTime? targetEndDate;
@@ -42,7 +42,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
   }
 
-  // 공통 카드 데코레이션 스타일
   BoxDecoration _buildCardDecoration() {
     return BoxDecoration(
       color: const Color(0xFFFAF9F5),
@@ -57,7 +56,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
-  // 데이터 통합 초기화 (서버 DB + 로컬 데이터)
   Future<void> _initMyPageData() async {
     setState(() => _isLoading = true);
     await _fetchUserDataFromApi();
@@ -65,7 +63,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
     setState(() => _isLoading = false);
   }
 
-  // 백엔드 API 서버 데이터 조회
   Future<void> _fetchUserDataFromApi() async {
     currentUser = FirebaseAuth.instance.currentUser;
     displayName = currentUser?.displayName ?? '사용자';
@@ -73,14 +70,15 @@ class _MyPageScreenState extends State<MyPageScreen> {
     if (currentUser != null && currentUser!.email != null) {
       try {
         final response = await _dio.get(
-          '/api/mypage/${currentUser!.email}',
+          // 'http://10.0.2.2:8080/api/mypage/${currentUser!.email}',
+          'api/mypage/${currentUser!.email}',
         );
 
         if (response.statusCode == 200 && response.data != null) {
           final data = response.data;
           setState(() {
-            targetBookCount = data['target_book_count'] ?? 0;
-            readBookCount = data['read_book_count'] ?? 0;
+            targetBookCount = data['targetBookCount'] ?? 0;
+            status = data['status'] ?? 0;
             displayName = data['name'] ?? displayName;
             userGrade = data['grade'] ?? 0;
           });
@@ -91,7 +89,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
   }
 
-  // 로컬 저장소 전용 데이터 불러오기
   Future<void> _loadLocalData() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -113,18 +110,16 @@ class _MyPageScreenState extends State<MyPageScreen> {
     });
   }
 
-  // 백엔드 API 서버에 목표 권수 업데이트
   Future<void> _updateTargetBookCountApi(int newTarget) async {
     if (currentUser == null || currentUser!.email == null) return;
 
     try {
       final response = await _dio.put(
-        '/api/mypage',
+        'http://10.0.2.2:8080/api/targetbook',
         data: {
           'email': currentUser!.email,
-          'target_book_count': newTarget,
+          'targetBookCount': newTarget,
           'grade': userGrade,
-          'name': displayName,
         },
       );
 
@@ -150,7 +145,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
-  // 프로필 사진 선택
   Future<void> _pickImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -250,10 +244,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
     const cardColor = Color(0xFFFAF9F5);
     const primaryColor = Color(0xFF8B5A2B);
 
-    // 빌드 타임에 현재 파이어베이스 로그인 상태 갱신
     currentUser = FirebaseAuth.instance.currentUser;
 
-    // 1. 로그인이 안 되어 있는 경우 -> 로그인 필요 안내 & 로그인하러 가기 버튼 UI 리턴
     if (currentUser == null) {
       return Scaffold(
         backgroundColor: bgColor,
@@ -276,14 +268,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () async {
-                  // 로그인 화면으로 이동 후, 로그인이 성공되어 돌아왔는지 여부를 받아옵니다.
-                  // (login_screen.dart에서 Navigator.pop(context, true)로 넘겨주어야 합니다)
                   final bool? loginSuccess = await Navigator.push<bool>(
                     context,
                     MaterialPageRoute(builder: (context) => const LoginScreen(title: 'BaroBook')),
                   );
 
-                  // 로그인이 성공한 채로 돌아왔다면, 홈 화면(첫 번째 탭)으로 완전히 이동시킵니다.
                   if (loginSuccess == true && mounted) {
                     Navigator.pushAndRemoveUntil(
                       context,
@@ -306,9 +295,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
       );
     }
 
-    // 2. 로그인이 되어 있는 경우 -> 내 독서 목표/프로필 화면 정상 표시
-    String currentGrade = _calculateGrade(readBookCount);
-    double progress = targetBookCount > 0 ? (readBookCount / targetBookCount).clamp(0.0, 1.0) : 0.0;
+    String currentGrade = _calculateGrade(status);
+    double progress = targetBookCount > 0 ? (status / targetBookCount).clamp(0.0, 1.0) : 0.0;
     int percentage = (progress * 100).toInt();
 
     String dateText = targetEndDate != null
@@ -337,8 +325,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
           child: Column(
             children: [
               const SizedBox(height: 10),
-
-              // 프로필 영역
               Center(
                 child: Column(
                   children: [
@@ -374,8 +360,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-
-                    // 관리자 특별 뱃지
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
@@ -397,7 +381,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         ],
                       ],
                     ),
-
                     const SizedBox(height: 4),
                     Text(
                       userBio.isEmpty ? '등록된 한 줄 소개가 없습니다.' : userBio,
@@ -415,17 +398,15 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        '현재 등급: $currentGrade (읽은 책: ${readBookCount}권)',
+                        // [수정완료] '완독' 글자 지우고 등급명만 깔끔하게 출력
+                        '현재 등급: $currentGrade',
                         style: const TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // 독서 진행률
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: _buildCardDecoration(),
@@ -438,7 +419,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         const Text('전체 독서 진행률', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         Text(
                           targetBookCount == 0
-                              ? '목표 미설정'
+                              ? ''
                               : dateText.isNotEmpty
                               ? '목표: ${targetBookCount}권 (~$dateText)'
                               : '목표: ${targetBookCount}권',
@@ -461,7 +442,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          targetBookCount == 0 ? '목표 권수를 설정해주세요.' : '총 ${targetBookCount}권 중 ${readBookCount}권 달성',
+                          // [수정완료] '목표미설정' 문구 제거 및 깔끔한 표현으로 통일
+                          targetBookCount == 0 ? '목표를 설정해주세요.' : '총 ${targetBookCount}권 중 ${status}권 달성',
                           style: const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                         Text(
@@ -473,10 +455,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // 가로 메뉴
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                 decoration: _buildCardDecoration(),
@@ -510,7 +489,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                           MaterialPageRoute(
                             builder: (context) => TargetBookScreen(
                               initialTarget: targetBookCount,
-                              readBookCount: readBookCount,
+                              status: status,
                               initialDate: targetEndDate,
                             ),
                           ),
@@ -520,6 +499,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                           final int newTarget = result['target'] ?? 0;
                           final DateTime? endDate = result['endDate'];
 
+                          // 서버로 목표 권수 업데이트 전송
                           await _updateTargetBookCountApi(newTarget);
 
                           if (endDate != null) {
@@ -528,6 +508,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
                             setState(() => targetEndDate = endDate);
                           }
                         }
+                        // 설정 완료 후 화면 최신화
+                        await _initMyPageData();
                       },
                     ),
                     VerticalDivider(width: 1, thickness: 1, color: Colors.grey[300]),

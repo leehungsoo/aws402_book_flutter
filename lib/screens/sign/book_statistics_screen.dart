@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 
 class BookStatisticsScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? completedBooks;
+  final int targetBookCount;
 
   const BookStatisticsScreen({
     super.key,
     this.completedBooks,
+    this.targetBookCount = 0,
   });
 
   @override
@@ -23,11 +25,11 @@ class _BookStatisticsScreenState extends State<BookStatisticsScreen> {
   @override
   void initState() {
     super.initState();
-
     _books = widget.completedBooks ?? [];
     _fetchCompletedBooksFromApi();
   }
 
+  // 서버로부터 최신 완독 리스트를 실시간으로 불러옴
   Future<void> _fetchCompletedBooksFromApi() async {
     if (currentUser?.email == null) return;
 
@@ -35,6 +37,7 @@ class _BookStatisticsScreenState extends State<BookStatisticsScreen> {
 
     try {
       final response = await _dio.get(
+        // 'http://10.0.2.2:8080/api/bookstatistics',
         '/api/bookstatistics',
         queryParameters: {'email': currentUser!.email},
       );
@@ -54,25 +57,6 @@ class _BookStatisticsScreenState extends State<BookStatisticsScreen> {
     }
   }
 
-  int _calculateThisMonthBooks(List<Map<String, dynamic>> books) {
-    final now = DateTime.now();
-    int count = 0;
-    for (var book in books) {
-
-      if (book['finish_date'] != null) {
-        try {
-          DateTime finishDate = DateTime.parse(book['finish_date'].toString());
-          if (finishDate.year == now.year && finishDate.month == now.month) {
-            count++;
-          }
-        } catch (e) {
-          debugPrint('날짜 파싱 오류 발생(${book['finish_date']}): $e');
-        }
-      }
-    }
-    return count;
-  }
-
   @override
   Widget build(BuildContext context) {
     const bgColor = Color(0xFFF5F0E6);
@@ -80,7 +64,9 @@ class _BookStatisticsScreenState extends State<BookStatisticsScreen> {
     const primaryColor = Color(0xFF8B5A2B);
 
     int totalCompleted = _books.length;
-    int thisMonthCompleted = _calculateThisMonthBooks(_books);
+    int remainingBooks = widget.targetBookCount > 0
+        ? (widget.targetBookCount - totalCompleted).clamp(0, widget.targetBookCount)
+        : 0;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -92,6 +78,14 @@ class _BookStatisticsScreenState extends State<BookStatisticsScreen> {
         backgroundColor: cardColor,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
+        actions: [
+          // 다른 페이지에서 완독 처리 후 바로 최신화할 수 있도록 수동 새로고침 버튼 제공
+          IconButton(
+            icon: const Icon(Icons.refresh, color: primaryColor),
+            onPressed: _fetchCompletedBooksFromApi,
+            tooltip: '새로고침',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: primaryColor))
@@ -125,7 +119,11 @@ class _BookStatisticsScreenState extends State<BookStatisticsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildStatItem('총 완독 도서', '$totalCompleted권', primaryColor),
-                      _buildStatItem('이번 달 독서', '$thisMonthCompleted권', primaryColor),
+                      _buildStatItem(
+                        widget.targetBookCount > 0 ? '목표 남은 권수' : '설정된 목표',
+                        widget.targetBookCount > 0 ? '$remainingBooks권' : '미설정',
+                        primaryColor,
+                      ),
                     ],
                   ),
                 ],
@@ -175,13 +173,20 @@ class _BookStatisticsScreenState extends State<BookStatisticsScreen> {
                         book['title']?.toString() ?? '제목 없음',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      subtitle: Text(
-                        '완독일: ${book['finish_date']?.toString().split(' ')[0] ?? '정보 없음'}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
+                      // 저자, 대여일, 완독일 표시
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Text('저자: ${book['author']?.toString() ?? '정보 없음'}',
+                              style: TextStyle(color: Colors.grey[700], fontSize: 12)),
+                          Text('대여일: ${book['rentSDate']?.toString().split(' ')[0] ?? '정보 없음'}',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                          Text('완독일: ${book['finishDate']?.toString().split(' ')[0] ?? '정보 없음'}',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                        ],
                       ),
+                      isThreeLine: true,
                     ),
                   );
                 },

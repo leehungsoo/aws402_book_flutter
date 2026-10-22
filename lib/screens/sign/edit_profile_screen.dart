@@ -63,6 +63,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (currentUser?.email == null) return false;
 
     try {
+      // 애뮬레이터
+      // const url = 'http://10.0.2.2:8080/api/editprofile';
+      // 실제기기
       const url = '/api/editprofile';
 
       final Map<String, dynamic> requestData = {

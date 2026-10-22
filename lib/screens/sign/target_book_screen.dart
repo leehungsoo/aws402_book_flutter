@@ -2,16 +2,17 @@ import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TargetBookScreen extends StatefulWidget {
   final int initialTarget;
-  final int readBookCount;
+  final int status;
   final DateTime? initialDate;
 
   const TargetBookScreen({
     super.key,
     this.initialTarget = 0,
-    this.readBookCount = 0,
+    this.status = 0,
     this.initialDate,
   });
 
@@ -27,12 +28,14 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
   bool _isLoading = false;
 
+  int currentStatus = 0;
+
   @override
   void initState() {
     super.initState();
-
+    currentStatus = widget.status;
     _targetController = TextEditingController(
-      text: widget.initialTarget > 0 ? widget.initialTarget.toString() : '10',
+      text: widget.initialTarget > 0 ? widget.initialTarget.toString() : '',
     );
     selectedDate = widget.initialDate;
   }
@@ -53,17 +56,16 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
     );
   }
 
-  String _getGradeTitle(int count) {
-    if (count >= 3000) return '💠 세계수 (3000권 이상)';
-    if (count >= 1000) return '🌲 숲 (1000권 이상)';
-    if (count >= 500) return '🌳 나무 (500권 이상)';
-    if (count >= 200) return '🌿 줄기 (200권 이상)';
-    if (count >= 100) return '🌿 새싹 (100권 이상)';
-    return '🌱 씨앗 (0권 이상)';
+  String _getReadingTitle(int count) {
+    if (count >= 3000) return '💠 세계수';
+    if (count >= 1000) return '🌲 숲';
+    if (count >= 500) return '🌳 나무';
+    if (count >= 200) return '🌿 줄기';
+    if (count >= 100) return '🌿 새싹';
+    return '🌱 씨앗';
   }
 
-  // 현재 읽은 책 수에 따른 등급 숫자 계산
-  int _calculateGradeNumber(int count) {
+  int _calculateReadingLevel(int count) {
     if (count >= 3000) return 5;
     if (count >= 1000) return 4;
     if (count >= 500) return 3;
@@ -72,21 +74,22 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
     return 0;
   }
 
-  // 백엔드 서버(tb_users)에 목표 권수 및 등급 업데이트 요청
-  Future<bool> _updateTargetOnServer(int targetCount) async {
-    if (currentUser?.email == null) return false;
-
+  // [추가] 백엔드 서버로 목표 권수를 전송하여 DB에 반영하는 함수
+  Future<bool> _updateTargetOnServer(int targetBookCount) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('target_book_count', targetBookCount);
 
-      const url = '/api/targetbook';
+      if (currentUser?.email == null) return true;
 
+      // const url = 'http://10.0.2.2:8080/api/targetbook';
+      const url = 'api/targetbook';
       final response = await _dio.put(
         url,
         data: {
           'email': currentUser!.email,
-          'target_book_count': targetCount,
-          'grade': _calculateGradeNumber(widget.readBookCount),
-          'name': currentUser!.displayName ?? '사용자',
+          'targetBookCount': targetBookCount,
+          'grade': _calculateReadingLevel(currentStatus),
         },
       );
 
@@ -107,7 +110,7 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF8B5A2B), // 달력 포인트 컬러
+              primary: Color(0xFF8B5A2B),
               onPrimary: Colors.white,
               onSurface: Colors.black87,
             ),
@@ -145,7 +148,7 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            //  현재 읽은 권수 및 등급 카드
+            // [복원 완료] 나의 독서 현황 및 칭호 카드
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -168,23 +171,43 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '• 현재까지 읽은 총 권수: ${widget.readBookCount}권',
+                    '• 현재까지 읽은 총 권수: ${currentStatus}권',
                     style: const TextStyle(fontSize: 14),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '• 현재 나의 등급: ${_getGradeTitle(widget.readBookCount)}',
+                    '• 현재 나의 독서 칭호: ${_getReadingTitle(currentStatus)}',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: primaryColor,
                     ),
                   ),
-                  const Divider(height: 24),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            // 등급 기준표 카드
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const Text(
                     '📖 등급 기준표',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
@@ -199,10 +222,7 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
-
-            //  목표 권수 및 날짜 설정 카드
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -233,6 +253,7 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
                     controller: _targetController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
+                      hintText: '목표 권수를 입력하세요',
                       suffixText: '권',
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -295,20 +316,15 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
                       if (parsedTarget != null && parsedTarget > 0) {
                         setState(() => _isLoading = true);
 
-                        // 백엔드 서버 DB에 목표 권수 및 등급 업데이트 동기화
-                        bool isUpdated = await _updateTargetOnServer(parsedTarget);
+                        //서버 API로 목표치 업데이트 전송
+                        await _updateTargetOnServer(parsedTarget);
 
                         setState(() => _isLoading = false);
 
-                        if (!isUpdated) {
-                          _showToast('서버 저장에 실패했으나 로컬에 반영합니다.');
-                        } else {
-                          _showToast('목표와 기간이 성공적으로 설정되었습니다!');
-                        }
+                        _showToast('목표와 기간이 성공적으로 설정되었습니다!');
 
                         if (!mounted) return;
 
-                        // 마이페이지로 목표 권수와 마감 날짜 전달 후 이동
                         Navigator.pop(context, {
                           'target': parsedTarget,
                           'endDate': selectedDate,
