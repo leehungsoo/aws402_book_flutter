@@ -98,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'emailVerified=${user?.emailVerified}',
     );
   }
-
+  
   // [형호 추가] 회원가입 화면 열기
   Future<void> _openSignUp() async {
     await Navigator.push<void>(
