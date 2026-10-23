@@ -71,19 +71,19 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.statusCode == 200 && response.data != null) {
-        _fetchFcmToken(response.data.data.idx, firebaseToken!);
-        return response.data.data as Map<String, dynamic>;
+        _fetchFcmToken(response.data['data']['idx'], fcmToken!);
+        return response.data['data'] as Map<String, dynamic>;
       }
     } catch (e) {
       debugPrint('백엔드 유저 정보 조회 오류: $e');
     }
     return null;
   }
-  Future<void> _fetchFcmToken(int idx, String firebaseToken) async {
+  Future<void> _fetchFcmToken(int idx, String fcmToken) async {
     await _dio.put('/user/token',
         data: {
           'idx':idx,
-          'token': firebaseToken,
+          'token': fcmToken,
         });
   }
   void _signIn() async {
