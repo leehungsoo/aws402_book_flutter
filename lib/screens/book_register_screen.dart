@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
+// [형호 추가] 현재 도서 정보를 사용자의 대여 목록 등록 작업까지 연결
+import 'package:aws402_book_flutter/screens/home/loan_actions.dart';
 
 import '../services/book_api.dart';
 import '../routes/app_routes.dart';
@@ -20,16 +22,13 @@ class BookRegisterScreen extends StatefulWidget {
   State<BookRegisterScreen> createState() => _BookRegisterState();
 }
 
-
 // 내용: 필수 입력값, 읽기 전용 여부, 날짜·가격 표시 및 표지 이미지 상태를 관리한다.
 class _BookRegisterState extends State<BookRegisterScreen> {
   final form = GlobalKey<FormState>();
   final fields = <String, TextEditingController>{};
 
-
   // 내용: 도서 가격을 천 단위 쉼표 형식으로 표시한다.
   final numberFormat = NumberFormat.decimalPattern('ko_KR');
-
 
   // 내용: 도서 제목·소개·ISBN·출판 날짜·저자·출판사를 필수 입력 항목으로 지정한다.
   static const requiredKeys = {
@@ -85,7 +84,6 @@ class _BookRegisterState extends State<BookRegisterScreen> {
     }
   }
 
-
   // 내용: 도서 정보 입력에 사용한 컨트롤러를 해제한다.
   @override
   void dispose() {
@@ -95,12 +93,10 @@ class _BookRegisterState extends State<BookRegisterScreen> {
     super.dispose();
   }
 
-
   // 내용: 직접 등록 시 갤러리에서 책 표지 이미지를 선택하도록 한다.
   Future<void> pickImage() async {
     if (readonly) return;
     try {
-
       // 내용: 도서 표지 이미지를 선택할 수 있도록 이미지 선택 기능을 연결한다.
       final file = await ImagePicker().pickImage(
         source: ImageSource.gallery,
@@ -113,7 +109,6 @@ class _BookRegisterState extends State<BookRegisterScreen> {
             .showSnackBar(SnackBar(content: Text('이미지 선택 실패: $e')));
     }
   }
-
 
   // 내용: 출판 날짜를 날짜 선택기로 입력하고 YYYY-MM-DD 형식으로 표시한다.
   Future<void> pickDate() async {
@@ -129,7 +124,6 @@ class _BookRegisterState extends State<BookRegisterScreen> {
     if (date != null)
       fields['datetime']!.text = DateFormat('yyyy-MM-dd').format(date);
   }
-
 
   // 내용: field 메서드에서 해당 화면 또는 데이터의 처리 로직을 구현한다.
   Widget field(String key) {
@@ -189,7 +183,6 @@ class _BookRegisterState extends State<BookRegisterScreen> {
     );
   }
 
-
   // 내용: 필수 6개 항목과 ISBN 중복 여부를 확인한 후 표지 이미지를 업로드하고 도서를 저장한다.
   Future<void> save() async {
     if (saving || !form.currentState!.validate()) return;
@@ -204,21 +197,42 @@ class _BookRegisterState extends State<BookRegisterScreen> {
       }
 
       // 내용: 도서 조회 또는 등록을 위해 서버 API를 호출하도록 연결한다.
-      if (await BookApi.exists(data['isbn'] as String)) {
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('이미 등록된 책입니다.')));
+      // [형호 수정] 서버에 동일한 도서 정보가 있는지 확인
+      final existsInCatalog = await BookApi.exists(data['isbn'] as String);
+
+      // [형호 수정] 서버에 없는 책일 때만 도서 정보를 새로 등록
+      if (!existsInCatalog) {
+        if (!readonly && selectedImage != null) {
+          data['thumbnail'] = await BookApi.uploadCover(selectedImage!.path);
+        }
+
+        await BookApi.save(data);
+      }
+
+      if (!mounted) return;
+
+      // [형호 수정] 기존 대여 목록에도 책을 추가
+      final addedToLoanList = await LoanActions.registerLoanBook(
+        context,
+        title: data['title']?.toString() ?? '',
+        author: data['authors']?.toString() ?? '',
+        isbn: data['isbn']?.toString() ?? '',
+      );
+
+      if (!mounted) return;
+
+      // [형호 추가] 대여 목록 등록 실패 처리 추가
+      if (!addedToLoanList) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('도서 정보를 확인했지만 내 대여 목록에는 추가하지 못했습니다.')),
+        );
         return;
       }
-      if (!readonly && selectedImage != null) {
-        data['thumbnail'] = await BookApi.uploadCover(selectedImage!.path);
-      }
-      await BookApi.save(data);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('도서 등록이 완료되었습니다.')));
 
-      // 내용: 도서 검색·등록 화면으로 이동할 수 있도록 라우팅을 연결한다.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('도서 등록 및 대여 목록 추가가 완료되었습니다.')),
+      );
+
       Navigator.pushNamedAndRemoveUntil(
         context,
         AppRoutes.home,
@@ -243,7 +257,6 @@ class _BookRegisterState extends State<BookRegisterScreen> {
       if (mounted) setState(() => saving = false);
     }
   }
-
 
   // 내용: 필수 입력 표시와 유효성 검사를 포함한 도서 등록 폼을 구성한다.
   @override
@@ -323,7 +336,6 @@ class _BookRegisterState extends State<BookRegisterScreen> {
     );
   }
 }
-
 
 // 내용: _ThousandsSeparatorFormatter 클래스를 추가하거나 변경하여 관련 기능을 구현한다.
 class _ThousandsSeparatorFormatter extends TextInputFormatter {
