@@ -1,238 +1,356 @@
 import 'dart:io';
 
-import 'package:aws402_book_flutter/models/kakao_book_model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// [형호 추가] 현재 도서 정보를 사용자의 대여 목록 등록 작업까지 연결
+import 'package:aws402_book_flutter/screens/home/loan_actions.dart';
 
-class BookInfoScreen extends StatefulWidget{
-  final String title;
-  const BookInfoScreen({super.key, required this.title});
+import '../services/book_api.dart';
+import '../routes/app_routes.dart';
 
+// 날짜: 2026-10-20
+// 수정자: 구정민
+// 내용: 도서 정보를 확인하거나 직접 입력해 등록하는 화면을 추가한다.
+class BookRegisterScreen extends StatefulWidget {
+  const BookRegisterScreen({super.key});
+
+  // 내용: 도서 등록 폼의 입력값과 저장 상태를 관리할 State 객체를 생성한다.
   @override
-  State<StatefulWidget> createState() => _BookInfoScreenState();
+  State<BookRegisterScreen> createState() => _BookRegisterState();
 }
 
-class _BookInfoScreenState extends State<BookInfoScreen> {
-  bool isLoading = true;
-  List<KakaoDocumentItem> kakaoDocumentItems = [];
+// 내용: 필수 입력값, 읽기 전용 여부, 날짜·가격 표시 및 표지 이미지 상태를 관리한다.
+class _BookRegisterState extends State<BookRegisterScreen> {
+  final form = GlobalKey<FormState>();
+  final fields = <String, TextEditingController>{};
 
-  final kakaoOptions = BaseOptions(
-      baseUrl: 'https://dapi.kakao.com/v3/search/book',
-      connectTimeout: Duration(seconds: 5),
-      receiveTimeout: Duration(seconds: 3),
-      headers: {
-        Headers.contentTypeHeader: Headers.jsonContentType,
-        Headers.acceptHeader: Headers.jsonContentType,
-        HttpHeaders.authorizationHeader: 'KakaoAK ${dotenv.env['KAKAO_API_KEY']}'
-      }
-  );
-  final apiOptions = BaseOptions(
-    baseUrl: 'http://barobook.kro.kr/api',
-      connectTimeout: Duration(seconds: 5),
-      receiveTimeout: Duration(seconds: 3),
-      headers: {
-        Headers.contentTypeHeader: Headers.jsonContentType,
-        Headers.acceptHeader: Headers.jsonContentType,
-      }
-  );
-  late Dio _kakaoDio;
-  late Dio _apiDio;
+  // 내용: 도서 가격을 천 단위 쉼표 형식으로 표시한다.
+  final numberFormat = NumberFormat.decimalPattern('ko_KR');
 
+  // 내용: 도서 제목·소개·ISBN·출판 날짜·저자·출판사를 필수 입력 항목으로 지정한다.
+  static const requiredKeys = {
+    'title',
+    'contents',
+    'isbn',
+    'datetime',
+    'authors',
+    'publisher',
+  };
+  bool initialized = false, readonly = false, saving = false;
+  XFile? selectedImage;
+  final names = <String, String>{
+    'title': '도서 제목',
+    'contents': '도서 소개',
+    'url': '도서 상세 URL',
+    'isbn': 'ISBN',
+    'datetime': '출판 날짜',
+    'authors': '저자 리스트',
+    'publisher': '출판사',
+    'translators': '번역자 리스트',
+    'price': '정가',
+    'sale_price': '판매가',
+    'thumbnail': '표지 이미지 URL',
+  };
+
+  // 내용: 전달받은 도서 정보를 입력란에 채우고 날짜와 가격을 표시 형식에 맞게 변환한다.
   @override
-  void initState() {
-    super.initState();
-    _kakaoDio = Dio(kakaoOptions);
-    _apiDio = Dio(apiOptions);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (initialized) return;
+    initialized = true;
+    final args =
+        (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?) ??
+        {};
+    readonly = args['readonly'] == true;
+    final book = (args['book'] as Map<String, dynamic>?) ?? {};
+    for (final key in names.keys) {
+      dynamic value = book[key];
+      if (value is List) value = value.join(', ');
+      String text = '${value ?? ''}';
+      if (key == 'datetime' && text.isNotEmpty) {
+        final parsed = DateTime.tryParse(text);
+
+        // 내용: 출판 날짜를 YYYY-MM-DD 형식으로 표시한다.
+        if (parsed != null) text = DateFormat('yyyy-MM-dd').format(parsed);
+      }
+      if ((key == 'price' || key == 'sale_price') && text.isNotEmpty) {
+        final amount = int.tryParse(text.replaceAll(',', ''));
+        if (amount != null) text = numberFormat.format(amount);
+      }
+      fields[key] = TextEditingController(text: text);
+    }
   }
 
+  // 내용: 도서 정보 입력에 사용한 컨트롤러를 해제한다.
   @override
   void dispose() {
+    for (final controller in fields.values) {
+      controller.dispose();
+    }
     super.dispose();
-    _kakaoDio.close();
-    _apiDio.close();
   }
 
-  Future<Widget> _getBookInfo(String? barcode) async {
+  // 내용: 직접 등록 시 갤러리에서 책 표지 이미지를 선택하도록 한다.
+  Future<void> pickImage() async {
+    if (readonly) return;
     try {
-      Response response = await _kakaoDio.get(
-          '',
-          queryParameters: {
-            'target': 'isbn',
-            'query': barcode,
-          }
+      // 내용: 도서 표지 이미지를 선택할 수 있도록 이미지 선택 기능을 연결한다.
+      final file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
       );
-      if (response.statusCode == 200) {
-        var data = response.data;
-        final List<dynamic> kakaoDocuments = data['documents'];
-        final List<KakaoDocumentItem> kakaoDocumentItems = kakaoDocuments.map((
-            item) => KakaoDocumentItem.fromJson(jsonData: item)).toList();
-        setState(() => this.kakaoDocumentItems = kakaoDocumentItems);
-        insertBookInfo();
-      }
-    } catch (e, s) {
-      debugPrint('$e, $s');
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
+      if (file != null && mounted) setState(() => selectedImage = file);
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('이미지 선택 실패: $e')));
     }
+  }
 
-    return Center(
-      child: Text('도서 정보가 없습니다.'),
+  // 내용: 출판 날짜를 날짜 선택기로 입력하고 YYYY-MM-DD 형식으로 표시한다.
+  Future<void> pickDate() async {
+    if (readonly) return;
+    final current =
+        DateTime.tryParse(fields['datetime']!.text) ?? DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(1400),
+      lastDate: DateTime(2100),
+    );
+    if (date != null)
+      fields['datetime']!.text = DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  // 내용: field 메서드에서 해당 화면 또는 데이터의 처리 로직을 구현한다.
+  Widget field(String key) {
+    if (key == 'thumbnail' && !readonly) return const SizedBox.shrink();
+    final price = key == 'price' || key == 'sale_price';
+    final date = key == 'datetime';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: TextFormField(
+        controller: fields[key],
+        readOnly: readonly || date,
+        onTap: date && !readonly ? pickDate : null,
+        maxLines: key == 'contents' ? 4 : 1,
+        keyboardType: price ? TextInputType.number : TextInputType.text,
+        inputFormatters: price && !readonly
+            ? [
+                FilteringTextInputFormatter.digitsOnly,
+                _ThousandsSeparatorFormatter(),
+              ]
+            : null,
+        decoration: InputDecoration(
+          label: requiredKeys.contains(key)
+              ? Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: names[key]),
+                      const TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Text(names[key]!),
+          suffixIcon: date ? const Icon(Icons.calendar_month) : null,
+          filled: true,
+          fillColor: const Color(0xFFFAF9F5),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+
+        // 내용: 필수 입력란이 비어 있을 때 등록을 막고 오류 문구를 표시한다.
+        validator: (value) {
+          if (requiredKeys.contains(key) &&
+              (value == null || value.trim().isEmpty))
+            return '필수 입력 항목입니다.';
+          if (price &&
+              value != null &&
+              value.isNotEmpty &&
+              int.tryParse(value.replaceAll(',', '')) == null)
+            return '숫자로 입력하세요.';
+          return null;
+        },
+      ),
     );
   }
 
-  Future<void> insertBookInfo() async {
-    try{
-      Response response = await _apiDio.post(
-        '/book/info',
-        data: kakaoDocumentItems[0].objToMap(),
-      );
-    }catch(e, s){
-      debugPrint('$e, $s');
-    }
-  }
-
-  Future<void> selectBookInfo(String? barcode) async {
-    try{
-      Response response = await _apiDio.get(
-        '/book/info',
-        queryParameters: {
-          'isbn' : barcode,
-        }
-      );
-      if(response.statusCode == 200){
-        var data = response.data;
-        if(data['result'] == 'success'){
-          setState(() {
-            isLoading = false;
-            kakaoDocumentItems.add(KakaoDocumentItem.fromJson(jsonData: data['data']));
-          });
-        }
+  // 내용: 필수 6개 항목과 ISBN 중복 여부를 확인한 후 표지 이미지를 업로드하고 도서를 저장한다.
+  Future<void> save() async {
+    if (saving || !form.currentState!.validate()) return;
+    setState(() => saving = true);
+    try {
+      final data = <String, dynamic>{
+        for (final key in names.keys) key: fields[key]!.text.trim(),
+      };
+      for (final key in ['price', 'sale_price']) {
+        data[key] =
+            int.tryParse((data[key] as String).replaceAll(',', '')) ?? 0;
       }
-    }catch(e, s){
-      debugPrint('$e, $s');
-    }finally{
-      if(isLoading){
-        _getBookInfo(barcode);
+
+      // 내용: 도서 조회 또는 등록을 위해 서버 API를 호출하도록 연결한다.
+      // [형호 수정] 서버에 동일한 도서 정보가 있는지 확인
+      final existsInCatalog = await BookApi.exists(data['isbn'] as String);
+
+      // [형호 수정] 서버에 없는 책일 때만 도서 정보를 새로 등록
+      if (!existsInCatalog) {
+        if (!readonly && selectedImage != null) {
+          data['thumbnail'] = await BookApi.uploadCover(selectedImage!.path);
+        }
+
+        await BookApi.save(data);
       }
-    }
-  }
 
+      if (!mounted) return;
 
-  Widget bookInfoWidget() {
-  KakaoDocumentItem kakaoDocumentItem = kakaoDocumentItems[0];
+      // [형호 수정] 기존 대여 목록에도 책을 추가
+      final addedToLoanList = await LoanActions.registerLoanBook(
+        context,
+        title: data['title']?.toString() ?? '',
+        author: data['authors']?.toString() ?? '',
+        isbn: data['isbn']?.toString() ?? '',
+      );
 
-  return Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        kakaoDocumentItem.title,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: Colors.black87,
-          fontSize: 30.0,
-          fontWeight: FontWeight.bold
-        ),
-      ),
-      SizedBox(height: 10.0,),
-      Row(
-        mainAxisSize: MainAxisSize.max,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10.0),
-            child: Image.network(
-              kakaoDocumentItem.thumbnail,
-              width: 100,
-              fit: BoxFit.fitWidth,
+      if (!mounted) return;
+
+      // [형호 추가] 대여 목록 등록 실패 처리 추가
+      if (!addedToLoanList) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('도서 정보를 확인했지만 내 대여 목록에는 추가하지 못했습니다.')),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('도서 등록 및 대여 목록 추가가 완료되었습니다.')),
+      );
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.home,
+        (route) => false,
+      );
+    } on DioException catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.response?.statusCode == 409
+                  ? '이미 등록된 책입니다.'
+                  : '저장 오류: ${e.message}',
             ),
           ),
-          SizedBox(width: 10.0,),
-          Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(kakaoDocumentItem.authors,),
-                  SizedBox(height: 10.0,),
-                  Text(kakaoDocumentItem.publisher)
-                ],
-              )
-          ),
-        ],
-      )
+        );
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('저장 오류: $e')));
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
 
-    ],
-  );
-}
-
+  // 내용: 필수 입력 표시와 유효성 검사를 포함한 도서 등록 폼을 구성한다.
   @override
   Widget build(BuildContext context) {
-    final arguments = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    final String barcode = arguments["barcode"] as String;
-
-    // if(isLoading)_getBookInfo(barcode);
-    if(isLoading)selectBookInfo(barcode);
-
+    final thumbnail = fields['thumbnail']!.text;
+    Widget preview;
+    if (selectedImage != null) {
+      preview = Image.file(
+        File(selectedImage!.path),
+        height: 180,
+        fit: BoxFit.contain,
+      );
+    } else if (thumbnail.isNotEmpty) {
+      preview = Image.network(
+        thumbnail,
+        height: 180,
+        errorBuilder: (context, error, stack) =>
+            const Icon(Icons.broken_image, size: 75),
+      );
+    } else {
+      preview = const SizedBox(
+        height: 180,
+        child: Icon(Icons.add_photo_alternate_outlined, size: 80),
+      );
+    }
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(80),
-        child: Container(
-          margin: EdgeInsets.only(right: 16.0),
-          decoration: BoxDecoration(
-            color: Colors.blueAccent,
+      backgroundColor: const Color(0xFFF5F0E6),
+      appBar: AppBar(
+        title: const Text('책 등록하기'),
+        actions: [
+          TextButton(
+            onPressed: saving ? null : save,
+            child: Text(saving ? '저장 중' : '✓ 저장'),
           ),
-          child: AppBar(
-            backgroundColor: Colors.transparent,
-            actions: [
-              Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Icon(Icons.star),
-              ),
-              Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Icon(Icons.more_vert),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
-      body:
-        Stack(
+      body: Form(
+        key: form,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
           children: [
-            Container(
-              height: 200,
-              margin: EdgeInsets.only(right: 16.0),
-              decoration: BoxDecoration(
-                color: Colors.blueAccent,
-                borderRadius: BorderRadius.only(bottomRight: Radius.circular(40.0))
+            InkWell(
+              onTap: readonly ? null : pickImage,
+              child: Column(
+                children: [
+                  Center(child: preview),
+                  if (!readonly)
+                    const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('표지를 눌러 갤러리에서 이미지 선택'),
+                    ),
+                ],
               ),
             ),
-            Container(
-              padding: EdgeInsets.all(20.0),
-              child: isLoading ?
-              Center(
-                child: CircularProgressIndicator(),
-              )
-                  :
-              kakaoDocumentItems.isNotEmpty ?
-              SingleChildScrollView(
-                child: Center(
-                  child: bookInfoWidget(),
-                ),
-              )
-                  :
-              Center(
-                child: Text('찾으시는 도서가 존재하지 않습니다.'),
+            const SizedBox(height: 24),
+            const Text(
+              '기본 정보',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '* 필수 입력',
+                style: TextStyle(color: Colors.red, fontSize: 13),
               ),
+            ),
+            const SizedBox(height: 12),
+            for (final key in names.keys) field(key),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: saving ? null : save,
+              child: const Text('저장'),
             ),
           ],
         ),
-
-
+      ),
     );
   }
+}
 
+// 내용: _ThousandsSeparatorFormatter 클래스를 추가하거나 변경하여 관련 기능을 구현한다.
+class _ThousandsSeparatorFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return const TextEditingValue(text: '');
+    final formatted = NumberFormat.decimalPattern('ko_KR')
+        .format(int.parse(digits));
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
 }
