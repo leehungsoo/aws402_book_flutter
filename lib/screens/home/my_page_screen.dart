@@ -11,6 +11,10 @@ import 'package:aws402_book_flutter/screens/sign/edit_profile_screen.dart';
 import 'package:aws402_book_flutter/screens/sign/target_book_screen.dart';
 import 'package:aws402_book_flutter/screens/sign/book_statistics_screen.dart';
 import '../home_screen.dart';
+// [형호 추가]
+import 'package:aws402_book_flutter/services/reading_goal_storage.dart';
+import 'package:aws402_book_flutter/models/loan_book_model.dart';
+import 'package:aws402_book_flutter/services/loan_book_storage.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -24,16 +28,50 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
-  BaseOptions options = BaseOptions(
-    connectTimeout: Duration(seconds: 5),
-    receiveTimeout: Duration(seconds: 3),
-    baseUrl: dotenv.env['CUSTOM_API_SERVER']??''
+
+  // [형호 수정] 서버 주소에서 API 기본 경로를 설정
+  String _resolveApiBaseUrl() {
+    final configured = dotenv.env['API_BASE_URL']?.trim();
+    final fallback = dotenv.env['CUSTOM_API_SERVER']?.trim() ?? '';
+
+    final base = (configured != null && configured.isNotEmpty)
+        ? configured
+        : fallback;
+
+    if (base.isEmpty) {
+      throw StateError('API_BASE_URL이 .env에 설정되지 않았습니다.');
+    }
+
+    final normalized = base.replaceAll(RegExp(r'/+$'), '');
+    final path = Uri.parse(normalized).path;
+
+    // 주소에 /api가 이미 있으면 중복으로 붙이지 않는다.
+    final apiBase =
+    path.endsWith('/api') ? normalized : '$normalized/api';
+
+    return '$apiBase/';
+  }
+
+  // [형호 수정] 백엔드 서버 통신용 Dio
+  late final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: _resolveApiBaseUrl(),
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+      sendTimeout: const Duration(seconds: 10),
+      headers: const {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    ),
   );
-  late final Dio _dio = Dio(options);
 
   int targetBookCount = 0;
   int status = 0;
   int userGrade = 0; // (0: 일반유저, 1: 관리자)
+  List<LoanBook> _loanBooks = []; // [형호 추가] 로컬 도서 목록
+  int readBookCount = 0; // [형호 추가] 화면에 표시할 완독 권수
+  int _serverReadBookCount = 0; // [형호 추가] 서버에서 받아온 완독 권수
   String userBio = '';
   DateTime? targetEndDate;
   String displayName = '사용자';
@@ -42,9 +80,17 @@ class _MyPageScreenState extends State<MyPageScreen> {
   @override
   void initState() {
     super.initState();
+
+    // [형호 추가] 도서 등록·수정·반납 시 마이페이지 갱신
+    LoanBookStorage.instance.changes.addListener(_refreshLoanBooks);
+    _refreshLoanBooks();
+
     currentUser = FirebaseAuth.instance.currentUser;
+
     if (currentUser != null) {
       _initMyPageData();
+    } else {
+      _loadLocalData();
     }
   }
 
@@ -62,86 +108,206 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
+  // [형호 수정] 기존의 API 조회 흐름을 유지하면서, 화면이 종료된 후 setState()를 호출하는 문제를 방지
   Future<void> _initMyPageData() async {
+    if (!mounted) return;
+
     setState(() => _isLoading = true);
+
     await _fetchUserDataFromApi();
     await _loadLocalData();
+
+    if (!mounted) return;
+
     setState(() => _isLoading = false);
   }
 
+  // [형호 수정]
   Future<void> _fetchUserDataFromApi() async {
     currentUser = FirebaseAuth.instance.currentUser;
     displayName = currentUser?.displayName ?? '사용자';
 
-    if (currentUser != null && currentUser!.email != null) {
-      try {
-        final response = await _dio.get(
-          // 'http://10.0.2.2:8080/api/mypage/${currentUser!.email}',
-          '/user/exists',
-          queryParameters: {
-            'email': currentUser!.email,
-          }
+    final email = currentUser?.email;
+    if (email == null || email.isEmpty) return;
 
-        );
+    try {
+      final response = await _dio.get<dynamic>(
+        '/user/exists',
+        queryParameters: {'email': email},
+      );
 
-        if (response.statusCode == 200 && response.data != null) {
-          final data = response.data['data'];
-          setState(() {
-            targetBookCount = data['targetBookCount'] ?? 0;
-            status = data['status'] ?? 0;
-            displayName = data['name'] ?? displayName;
-            userGrade = data['grade'] ?? 0;
-          });
-        }
-      } catch (e) {
-        debugPrint('API 데이터 조회 실패: $e');
+      final body = response.data;
+
+      if (response.statusCode != 200 ||
+          body is! Map ||
+          body['data'] is! Map) {
+        debugPrint('[마이페이지 API] 사용자 정보 응답 확인 필요: $body');
+        return;
       }
+
+      final data = Map<String, dynamic>.from(body['data'] as Map);
+
+      final serverTarget =
+          int.tryParse('${data['targetBookCount'] ?? 0}') ?? 0;
+      final serverStatus =
+          int.tryParse('${data['status'] ?? 0}') ?? 0;
+      final serverRole =
+          int.tryParse('${data['grade'] ?? 0}') ?? 0;
+      final serverName = data['name']?.toString();
+
+      if (!mounted) return;
+
+      setState(() {
+        targetBookCount = serverTarget;
+        status = serverStatus;
+        userGrade = serverRole;
+
+        // 서버에서 내려온 값을 기존 화면 데이터와 결합
+        _serverReadBookCount = serverStatus;
+        if (serverStatus > readBookCount) {
+          readBookCount = serverStatus;
+        }
+
+        if (serverName != null && serverName.trim().isNotEmpty) {
+          displayName = serverName;
+        }
+      });
+    } on DioException catch (e) {
+      debugPrint(
+        '[마이페이지 API 오류] '
+            'HTTP: ${e.response?.statusCode}, '
+            '응답: ${e.response?.data ?? e.message}',
+      );
+    } catch (e) {
+      debugPrint('[마이페이지 API 예외] $e');
     }
   }
 
+  // [형호 수정]
   Future<void> _loadLocalData() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final String? imagePath = prefs.getString('profile_image_path');
+    // 기존 버전에서 사용한 목표 저장 키
+    final targetFromLegacyKey =
+        prefs.getInt('target_book_count') ?? 0;
+
+    // 현재 독서 목표 저장소
+    final targetFromGoalStorage =
+    await ReadingGoalStorage.instance.loadTargetBookCount();
+
+    final localTargetBookCount = [
+      targetFromLegacyKey,
+      targetFromGoalStorage,
+    ].reduce((a, b) => a > b ? a : b);
+
+    // 프로필 사진
+    final imagePath = prefs.getString('profile_image_path');
+
     File? loadedImage;
     if (imagePath != null && imagePath.isNotEmpty) {
       final file = File(imagePath);
-      if (await file.exists()) loadedImage = file;
+      if (await file.exists()) {
+        loadedImage = file;
+      }
     }
 
-    final String loadedBio = prefs.getString('user_bio') ?? '';
-    final String? dateString = prefs.getString('target_end_date');
-    DateTime? loadedDate = dateString != null ? DateTime.tryParse(dateString) : null;
+    // 한 줄 소개
+    final loadedBio = prefs.getString('user_bio') ?? '';
+
+    // 목표 마감 날짜
+    final dateString = prefs.getString('target_end_date');
+    final loadedDate = dateString == null
+        ? null
+        : DateTime.tryParse(dateString);
+
+    // 로컬 도서 목록
+    final localBooks = await LoanBookStorage.instance.loadBooks();
+
+    final completedCount =
+        localBooks.where((book) => book.isCompleted).length;
+
+    final effectiveReadCount = [
+      completedCount,
+      readBookCount,
+      _serverReadBookCount,
+    ].reduce((a, b) => a > b ? a : b);
+
+    if (!mounted) return;
 
     setState(() {
       _imageFile = loadedImage;
       userBio = loadedBio;
       targetEndDate = loadedDate;
+
+      _loanBooks = localBooks;
+      readBookCount = effectiveReadCount;
+
+      // 서버 목표가 없을 때 로컬 목표 사용
+      if (targetBookCount <= 0 && localTargetBookCount > 0) {
+        targetBookCount = localTargetBookCount;
+      }
     });
+
+    debugPrint('[마이페이지 복구] 로컬 도서 수: ${localBooks.length}');
+    debugPrint('[마이페이지 복구] 로컬 완독 권수: $completedCount');
+    debugPrint('[마이페이지 복구] 서버 완독 권수: $_serverReadBookCount');
   }
 
+  // [형호 수정]
   Future<void> _updateTargetBookCountApi(int newTarget) async {
-    if (currentUser == null || currentUser!.email == null) return;
+    if (newTarget <= 0) {
+      showToast('올바른 목표 권수를 입력해주세요.');
+      return;
+    }
+
+    // 서버 연결이 실패해도 기기의 목표를 유지
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setInt('target_book_count', newTarget);
+    await ReadingGoalStorage.instance.saveTargetBookCount(newTarget);
+
+    if (!mounted) return;
+
+    setState(() {
+      targetBookCount = newTarget;
+    });
+
+    final email = FirebaseAuth.instance.currentUser?.email;
+
+    if (email == null || email.isEmpty) {
+      showToast('목표를 기기에 저장했습니다. 로그인 정보를 확인해주세요.');
+      return;
+    }
 
     try {
-      final response = await _dio.put(
+      final response = await _dio.put<dynamic>(
         '/user/targetbook',
         data: {
-          'email': currentUser!.email,
+          'email': email,
           'targetBookCount': newTarget,
           'grade': userGrade,
         },
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
-        setState(() => targetBookCount = newTarget);
         showToast('목표 권수가 저장되었습니다.');
+        debugPrint('[목표 저장] 서버 저장 성공: $newTarget');
       } else {
-        showToast('목표 권수 저장 실패');
+        showToast('기기에는 저장했지만 서버 저장은 실패했습니다.');
+        debugPrint(
+          '[목표 저장] HTTP ${response.statusCode}: ${response.data}',
+        );
       }
+    } on DioException catch (e) {
+      showToast('기기에는 저장했지만 서버 연결에 실패했습니다.');
+      debugPrint(
+        '[목표 저장 API 오류] '
+            'HTTP ${e.response?.statusCode}, '
+            '${e.response?.data ?? e.message}',
+      );
     } catch (e) {
-      showToast('서버 통신 에러');
-      debugPrint('Dio PUT 에러: $e');
+      showToast('목표는 기기에 저장했지만 서버 처리 중 오류가 발생했습니다.');
+      debugPrint('[목표 저장 예외] $e');
     }
   }
 
@@ -248,10 +414,32 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
+  // [형호 추가] 도서 목록이 변경되면 최신 데이터를 다시 불러옴
+  Future<void> _refreshLoanBooks() async {
+    final books = await LoanBookStorage.instance.loadBooks();
+
+    if (!mounted) return;
+
+    final completedCount =
+        books.where((book) => book.isCompleted).length;
+
+    final effectiveReadCount = [
+      completedCount,
+      readBookCount,
+      _serverReadBookCount,
+    ].reduce((a, b) => a > b ? a : b);
+
+    setState(() {
+      _loanBooks = books;
+      readBookCount = effectiveReadCount;
+    });
+  }
+
+  // [형호 수정] 화면이 사라질 때 도서 저장소의 변경 리스너를 해제
   @override
   void dispose() {
+    LoanBookStorage.instance.changes.removeListener(_refreshLoanBooks);
     super.dispose();
-    _dio.clone();
   }
 
   @override
@@ -311,8 +499,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
       );
     }
 
-    String currentGrade = _calculateGrade(status);
-    double progress = targetBookCount > 0 ? (status / targetBookCount).clamp(0.0, 1.0) : 0.0;
+    // [형호 수정] 등급과 진행률 계산 변경
+    String currentGrade = _calculateGrade(readBookCount);
+    double progress = targetBookCount > 0
+        ? (readBookCount / targetBookCount).clamp(0.0, 1.0)
+        : 0.0;
     int percentage = (progress * 100).toInt();
 
     String dateText = targetEndDate != null
@@ -459,7 +650,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       children: [
                         Text(
                           // [수정완료] '목표미설정' 문구 제거 및 깔끔한 표현으로 통일
-                          targetBookCount == 0 ? '목표를 설정해주세요.' : '총 ${targetBookCount}권 중 ${status}권 달성',
+                          targetBookCount == 0
+                              ? '목표를 설정해주세요.'
+                              : '총 ${targetBookCount}권 중 ${readBookCount}권 달성',
                           style: const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                         Text(
@@ -505,12 +698,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
                           MaterialPageRoute(
                             builder: (context) => TargetBookScreen(
                               initialTarget: targetBookCount,
-                              status: status,
+                              status: readBookCount, // [형호 수정]
                               initialDate: targetEndDate,
                             ),
                           ),
                         );
-
                         if (result != null) {
                           final int newTarget = result['target'] ?? 0;
                           final DateTime? endDate = result['endDate'];
@@ -536,8 +728,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const BookStatisticsScreen(
-                              completedBooks: [],
+                            builder: (context) => BookStatisticsScreen(
+                              completedBooks: _loanBooks
+                                  .where((book) => book.isCompleted)
+                                  .map((book) => book.toJson())
+                                  .toList(), // [형호 수정] 통계 화면에 실제 완독 도서 전달
                             ),
                           ),
                         );
@@ -546,9 +741,146 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   ],
                 ),
               ),
+              // [형호 추가] 독서 현황 카드
+              const SizedBox(height: 20),
+              _buildReadingRecordsCard(),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // [형호 추가] 나의 독서 기록 카드
+  Widget _buildReadingRecordsCard() {
+    final readingBooks = _loanBooks
+        .where((book) => book.isCurrentlyReading)
+        .toList();
+
+    final overdueBooks =
+    _loanBooks.where((book) => book.isOverdue).toList();
+
+    final dueSoonBooks =
+    _loanBooks.where((book) => book.isDueSoon).toList();
+
+    final completedBooks =
+    _loanBooks.where((book) => book.isCompleted).toList();
+
+    final returnedBooks =
+    _loanBooks.where((book) => book.isReturned).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: _buildCardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '독서 현황',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          _buildBookRecordCategory('읽는 중인 책', readingBooks),
+          _buildBookRecordCategory('반납 임박', dueSoonBooks),
+          _buildBookRecordCategory('연체', overdueBooks),
+          _buildBookRecordCategory('완독', completedBooks),
+          _buildBookRecordCategory('반납 완료', returnedBooks),
+        ],
+      ),
+    );
+  }
+
+  // [형호 추가] 독서 기록의 개별 분류와 도서 제목 표시
+  Widget _buildBookRecordCategory(String title, List<LoanBook> books) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        dividerColor: Colors.transparent,
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+        childrenPadding: const EdgeInsets.only(
+          left: 8,
+          right: 8,
+          bottom: 12,
+        ),
+        initiallyExpanded: false,
+        leading: const Icon(
+          Icons.menu_book_rounded,
+          color: Color(0xFF8B5A2B),
+          size: 21,
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${books.length}권',
+              style: const TextStyle(
+                color: Color(0xFF8B5A2B),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.keyboard_arrow_down_rounded),
+          ],
+        ),
+        children: [
+          if (books.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                '해당하는 책이 없습니다.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+            )
+          else
+            ...books.map(
+                  (book) => Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F0E6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.book_outlined,
+                      size: 18,
+                      color: Color(0xFF8B5A2B),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        book.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
