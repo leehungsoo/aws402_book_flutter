@@ -7,18 +7,23 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'firebase_options.dart';
 
-void main() async {
-
+// [형호 수정]
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // .env 환경변수 로드
   await dotenv.load(fileName: ".env");
-  // await DeviceInfo.checkPlatform();
-  runApp(const MyApp());
 
+  // Firebase 초기화
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // 기존 플랫폼 확인 코드는 필요할 때 사용
+  // await DeviceInfo.checkPlatform();
+
+  // Firebase 초기화가 완료된 후 앱 실행
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -29,12 +34,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: '바로북',
-      theme: ThemeData(
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
+      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
       initialRoute: AppRoutes.home,
       routes: AppRoutes.routes,
     );
   }
 }
-
