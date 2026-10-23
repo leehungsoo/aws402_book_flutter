@@ -65,9 +65,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // [형호 추가] 로그인 화면 열기(로그인 성공 여부는 Firebase 인증 상태 구독을 통해 화면에 반영)
   Future<void> _openLogin() async {
-    await Navigator.push<bool>(
+    final bool? loginSuccess = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => const LoginScreen(title: 'BaroBook')),
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(title: 'BaroBook'),
+      ),
+    );
+
+    // 로그인 화면에서 성공 결과를 반환하지 않았다면 종료한다.
+    if (!mounted || loginSuccess != true) return;
+
+    try {
+      // Firebase 사용자 정보를 새로고침한다.
+      await FirebaseAuth.instance.currentUser?.reload();
+    } catch (e) {
+      debugPrint('[로그인 후 인증 갱신 오류] $e');
+    }
+
+    if (!mounted) return;
+
+    // 새로고침된 Firebase 인증 정보를 확인한다.
+    final user = FirebaseAuth.instance.currentUser;
+
+    setState(() {
+      _authChecked = true;
+      _isAuthenticated = user != null && user.emailVerified;
+    });
+
+    debugPrint(
+      '[로그인 후 인증 상태] '
+          'userExists=${user != null}, '
+          'emailVerified=${user?.emailVerified}',
     );
   }
 
