@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -30,7 +31,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     BaseOptions(
       connectTimeout: Duration(seconds: 5),
       receiveTimeout: Duration(seconds: 3),
-      baseUrl: 'http://barobook.kro.kr/api'
+      baseUrl: dotenv.env['API_BASE_URL']??''
     )
   );
   bool _isLoading = false;

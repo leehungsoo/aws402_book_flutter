@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -26,8 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
     BaseOptions(
       connectTimeout: Duration(seconds: 5),
       receiveTimeout: Duration(seconds: 3),
-      baseUrl: 'http://barobook.kro.kr/api'
-      // baseUrl: 'http://localhost:8080/api'
+      baseUrl: dotenv.env['API_BASE_URL']??''
     )
   );
 
@@ -82,6 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _fetchFcmToken(int idx, String firebaseToken) async {
     await _dio.put('/user/token',
         data: {
+          'idx':idx,
           'token': firebaseToken,
         });
   }

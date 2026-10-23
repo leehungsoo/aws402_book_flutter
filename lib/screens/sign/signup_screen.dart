@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 // 공통 토스트 메시지 함수
@@ -39,7 +40,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       BaseOptions(
           connectTimeout: Duration(seconds: 5),
           receiveTimeout: Duration(seconds: 3),
-          baseUrl: 'http://barobook.kro.kr/api'
+          baseUrl: dotenv.env['API_BASE_URL']??''
       )
   ); // 서버 통신용 Dio 인스턴스
 
@@ -57,7 +58,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // 애뮬레이터
       // const url = 'http://10.0.2.2:8080/api/signup';
       // 실제기기
-      const url = '/api/signup';
+      const url = '/user/signup';
 
       final response = await _dio.post(
         url,

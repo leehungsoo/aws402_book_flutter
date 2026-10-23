@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,7 +27,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   BaseOptions options = BaseOptions(
     connectTimeout: Duration(seconds: 5),
     receiveTimeout: Duration(seconds: 3),
-    baseUrl: "http://barobook.kro.kr"
+    baseUrl: dotenv.env['CUSTOM_API_SERVER']??''
   );
   late final Dio _dio = Dio(options);
 
@@ -76,11 +77,15 @@ class _MyPageScreenState extends State<MyPageScreen> {
       try {
         final response = await _dio.get(
           // 'http://10.0.2.2:8080/api/mypage/${currentUser!.email}',
-          'api/mypage/${currentUser!.email}',
+          '/user/exists',
+          queryParameters: {
+            'email': currentUser!.email,
+          }
+
         );
 
         if (response.statusCode == 200 && response.data != null) {
-          final data = response.data;
+          final data = response.data['data'];
           setState(() {
             targetBookCount = data['targetBookCount'] ?? 0;
             status = data['status'] ?? 0;
@@ -120,7 +125,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
     try {
       final response = await _dio.put(
-        'http://10.0.2.2:8080/api/targetbook',
+        '/user/targetbook',
         data: {
           'email': currentUser!.email,
           'targetBookCount': newTarget,

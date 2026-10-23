@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,7 +25,13 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
   late final TextEditingController _targetController;
   DateTime? selectedDate;
 
-  final Dio _dio = Dio();
+  final Dio _dio = Dio(
+      BaseOptions(
+          connectTimeout: Duration(seconds: 5),
+          receiveTimeout: Duration(seconds: 3),
+          baseUrl: dotenv.env['API_BASE_URL']??''
+      )
+  );
   final User? currentUser = FirebaseAuth.instance.currentUser;
   bool _isLoading = false;
 
@@ -83,7 +90,7 @@ class _TargetBookScreenState extends State<TargetBookScreen> {
       if (currentUser?.email == null) return true;
 
       // const url = 'http://10.0.2.2:8080/api/targetbook';
-      const url = 'api/targetbook';
+      const url = '/user/targetbook';
       final response = await _dio.put(
         url,
         data: {

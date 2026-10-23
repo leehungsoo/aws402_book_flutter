@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class BookStatisticsScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? completedBooks;
@@ -19,7 +20,11 @@ class BookStatisticsScreen extends StatefulWidget {
 class _BookStatisticsScreenState extends State<BookStatisticsScreen> {
   List<Map<String, dynamic>> _books = [];
   bool _isLoading = false;
-  final Dio _dio = Dio();
+  final Dio _dio = Dio(BaseOptions(
+      connectTimeout: Duration(seconds: 5),
+      receiveTimeout: Duration(seconds: 3),
+      baseUrl: dotenv.env['API_BASE_URL']??''
+  ));
   final User? currentUser = FirebaseAuth.instance.currentUser;
 
   @override
@@ -38,12 +43,12 @@ class _BookStatisticsScreenState extends State<BookStatisticsScreen> {
     try {
       final response = await _dio.get(
         // 'http://10.0.2.2:8080/api/bookstatistics',
-        '/api/bookstatistics',
+        '/book/list/email',
         queryParameters: {'email': currentUser!.email},
       );
 
       if (response.statusCode == 200 && response.data != null) {
-        final List<dynamic> rawList = response.data;
+        final List<dynamic> rawList = response.data['data'];
         setState(() {
           _books = rawList.map((item) => Map<String, dynamic>.from(item)).toList();
         });
@@ -178,11 +183,11 @@ class _BookStatisticsScreenState extends State<BookStatisticsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 4),
-                          Text('저자: ${book['author']?.toString() ?? '정보 없음'}',
+                          Text('저자: ${book['authors']?.toString() ?? '정보 없음'}',
                               style: TextStyle(color: Colors.grey[700], fontSize: 12)),
-                          Text('대여일: ${book['rentSDate']?.toString().split(' ')[0] ?? '정보 없음'}',
+                          Text('대여일: ${book['rent_s_date']?.toString().split(' ')[0] ?? '정보 없음'}',
                               style: TextStyle(color: Colors.grey[600], fontSize: 11)),
-                          Text('완독일: ${book['finishDate']?.toString().split(' ')[0] ?? '정보 없음'}',
+                          Text('완독일: ${book['finish_date']?.toString().split(' ')[0] ?? '정보 없음'}',
                               style: TextStyle(color: Colors.grey[600], fontSize: 11)),
                         ],
                       ),
