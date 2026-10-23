@@ -5,7 +5,7 @@ import 'package:aws402_book_flutter/models/lending_record_model.dart';
 import 'package:aws402_book_flutter/models/loan_book_model.dart';
 
 // [형호]
-/// 대여 기록 로컬 저장소.
+/// 대여 기록 로컬 저장소
 /// LoanBook과 연결된 기록은 LoanBookStorage에서 불러오거나 저장할 때 자동 동기화.
 class LendingRecordStorage {
   LendingRecordStorage._();
