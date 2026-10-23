@@ -1,4 +1,12 @@
+import 'dart:ui';
+
 import 'package:aws402_book_flutter/services/loan_notification_service.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../../models/lending_record_model.dart';
+import '../../services/lending_record_storage.dart';
+import '../../services/loan_book_storage.dart';
 
 const Color _bbBackground = Color(0xFFF4F4F9);
 const Color _bbBorder = Color(0xFFE1E5EE);
