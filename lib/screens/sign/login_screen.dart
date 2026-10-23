@@ -24,11 +24,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isLoading = false;
   final Dio _dio = Dio(
-    BaseOptions(
-      connectTimeout: Duration(seconds: 5),
-      receiveTimeout: Duration(seconds: 3),
-      baseUrl: dotenv.env['API_BASE_URL']??''
-    )
+      BaseOptions(
+          connectTimeout: Duration(seconds: 5),
+          receiveTimeout: Duration(seconds: 3),
+          baseUrl: dotenv.env['API_BASE_URL']??''
+      )
   );
 
   @override
@@ -71,21 +71,19 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.statusCode == 200 && response.data != null) {
-        _fetchFcmToken(response.data['data']['idx'], fcmToken!);
-        return response.data['data'] as Map<String, dynamic>;
+        _fetchFcmToken(response.data.data.idx, firebaseToken!);
+        return response.data.data as Map<String, dynamic>;
       }
     } catch (e) {
       debugPrint('백엔드 유저 정보 조회 오류: $e');
     }
     return null;
   }
-  Future<void> _fetchFcmToken(int idx, String fcmToken) async {
-    print('idx : $idx');
-    print('fcmToken : $fcmToken');
+  Future<void> _fetchFcmToken(int idx, String firebaseToken) async {
     await _dio.put('/user/token',
         data: {
           'idx':idx,
-          'token': fcmToken,
+          'token': firebaseToken,
         });
   }
   void _signIn() async {
@@ -117,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         _showToast('로그인 성공!');
 
-         Navigator.pop(context, true);
+        Navigator.pop(context, true);
 
         // Navigator.pushReplacement(
         //   context,
